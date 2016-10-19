@@ -14,6 +14,8 @@
 #include <dwrite.h>
 #include <wincodec.h>
 
+#include <vector>
+
 template<class Interface>
 inline void SafeRelease(Interface **ppInterfaceToRelease)
 {
@@ -77,9 +79,28 @@ private:
         LPARAM lParam
     );
 private:
+    const FLOAT WINDOW_WIDTH = 800.f;
+    const FLOAT WINDOW_HEIGHT = 800.f;
+    const LPCSTR WINDOW_CLASS_NAME = "D2DSync";
+    const FLOAT LINE_WIDTH = 0.5f;
+    INT scale;
+    INT frame = 0;
+    BOOL timerOn = false;
     HWND m_hwnd;
     ID2D1Factory* m_pDirect2dFactory;
     ID2D1HwndRenderTarget* m_pRenderTarget;
     ID2D1SolidColorBrush* m_pLightSlateGrayBrush;
     ID2D1SolidColorBrush* m_pCornflowerBlueBrush;
+    ID2D1SolidColorBrush* m_pRedBrush;
+    ID2D1SolidColorBrush* m_pBlackBrush;
+
+    std::vector<D2D1_POINT_2F> serverList;
+    std::vector<D2D1_POINT_2F> normalClientList;
+    std::vector<D2D1_POINT_2F> normalChaseList;
+    std::vector<D2D1_POINT_2F> syncClientList;
+    std::vector<D2D1_POINT_2F> syncChaseList;
+
+    INT posX, posY;
+    D2D_POINT_2F transform;
+    FLOAT wscale = 1;
 };

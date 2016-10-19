@@ -9,6 +9,33 @@ DemoApp::DemoApp():
     m_pLightSlateGrayBrush(NULL),
     m_pCornflowerBlueBrush(NULL)
 {
+    FILE *fp = NULL;
+    FLOAT Sx = 0.f, Sy = 0.f;
+    FLOAT Cx = 0.f, Cy = 0.f;
+    FLOAT CRx = 0.f, CRy = 0.f;
+    fopen_s(&fp, "pointData", "r");
+    while(fscanf_s(fp, "%f %f %f %f %f %f", &Sx, &Sy, &Cx, &Cy, &CRx, &CRy) > 0)
+    {
+        serverList.push_back(D2D1::Point2F(Sx, Sy));
+        normalChaseList.push_back(D2D1::Point2F(Cx, Cy));
+        normalClientList.push_back(D2D1::Point2F(CRx, CRy));
+    }
+    fclose(fp);
+    fp = NULL;
+
+    fopen_s(&fp, "pointData2", "r");
+    while (fscanf_s(fp, "%f %f %f %f %f %f", &Sx, &Sy, &Cx, &Cy, &CRx, &CRy) > 0)
+    {
+        syncChaseList.push_back(D2D1::Point2F(Cx, Cy));
+        syncClientList.push_back(D2D1::Point2F(CRx, CRy));
+    }
+    fclose(fp);
+    fp = NULL;
+    scale = serverList.size() - 1;
+    if (scale < 1)
+    {
+        scale = 1;
+    }
 }
 
 DemoApp::~DemoApp()
@@ -37,7 +64,7 @@ HRESULT DemoApp::Initialize()
         wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
         wcex.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);
         wcex.lpszMenuName = NULL;
-        wcex.lpszClassName = "D2DDemoApp";
+        wcex.lpszClassName = WINDOW_CLASS_NAME;
         wcex.hIconSm = LoadIcon(HINST_THISCOMPONENT, IDI_APPLICATION);
         RegisterClassEx(&wcex);
     }
@@ -49,13 +76,13 @@ HRESULT DemoApp::Initialize()
     // Create the window.
     m_hwnd = CreateWindowEx(
         0,
-        "D2DDemoApp",//Class name
-        "Direct2D Demo App",//Window name
+        WINDOW_CLASS_NAME,//Class name
+        "Sync Result",//Window name
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
-        static_cast<UINT>(ceil(800.f * dpiY / 96.f)),//Height
-        static_cast<UINT>(ceil(800.f * dpiX / 96.f)),//Width
+        static_cast<UINT>(ceil(WINDOW_WIDTH * dpiX / 96.f)),//Width
+        static_cast<UINT>(ceil(WINDOW_HEIGHT * dpiY / 96.f)),//Height
         NULL,
         NULL,
         HINST_THISCOMPONENT,
@@ -66,6 +93,7 @@ HRESULT DemoApp::Initialize()
     {
         ShowWindow(m_hwnd, SW_SHOWNORMAL);
         UpdateWindow(m_hwnd);
+        timerOn = SetTimer(m_hwnd, 0, 100, NULL);
     }
     return hr;
 }
@@ -122,6 +150,22 @@ HRESULT DemoApp::CreateDeviceResources()
                 &m_pCornflowerBlueBrush
             );
         }
+        if (SUCCEEDED(hr))
+        {
+            // Create a red brush.
+            hr = m_pRenderTarget->CreateSolidColorBrush(
+                D2D1::ColorF(D2D1::ColorF::IndianRed),
+                &m_pRedBrush
+            );
+        }
+        if (SUCCEEDED(hr))
+        {
+            // Create a black brush.
+            hr = m_pRenderTarget->CreateSolidColorBrush(
+                D2D1::ColorF(D2D1::ColorF::Black),
+                &m_pBlackBrush
+            );
+        }
     }
     return hr;
 }
@@ -144,55 +188,101 @@ HRESULT DemoApp::OnRender()
         m_pRenderTarget->Clear(D2D1::ColorF(D2D1::ColorF::White));
         D2D1_SIZE_F rtSize = m_pRenderTarget->GetSize();
 
-        FILE *fp = NULL;
-        fopen_s(&fp, "pointData2", "r");
-        float Sx = -1, Sy = -1, SxO = 0, SyO = 0;
-        float Cx = -1, Cy = -1, CxO = 0, CyO = 0;
-        float CRx = -1, CRy = -1, CRxO = 0, CRyO = 0;
-        int res = 0;
-        int time = 0;
-        res = fscanf_s(fp, "%f %f %f %f %f %f", &Sx, &Sy, &Cx, &Cy, &CRx, &CRy);
-        while (res > 0)
+        D2D1_MATRIX_3X2_F m1 = D2D1::Matrix3x2F::Translation(transform.x, transform.y);
+        D2D1_MATRIX_3X2_F m2 = D2D1::Matrix3x2F::Scale(wscale, wscale);
+        m_pRenderTarget->SetTransform(m1 * m2);
+        m_pRenderTarget->DrawLine(
+            D2D1::Point2F(rtSize.width / 2, 0),
+            D2D1::Point2F(rtSize.width / 2, rtSize.height),
+            m_pBlackBrush,
+            1.0f
+        );
+        m_pRenderTarget->DrawLine(
+            D2D1::Point2F(0, rtSize.height / 2),
+            D2D1::Point2F(rtSize.width, rtSize.height / 2),
+            m_pBlackBrush,
+            1.0f
+        );
+
+        for (int i = 1; i < frame + 1; i++)
         {
+            // Server
             m_pRenderTarget->DrawLine(
-                D2D1::Point2F(rtSize.width / 4 + SxO * 10, rtSize.height / 4 + SyO * 10),
-                D2D1::Point2F(rtSize.width / 4 + Sx * 10, rtSize.height / 4 + Sy * 10),
+                D2D1::Point2F(rtSize.width / 4 + serverList[i - 1].x * rtSize.width / 4 / scale, rtSize.height / 4 + serverList[i - 1].y * rtSize.width / 4 / scale),
+                D2D1::Point2F(rtSize.width / 4 + serverList[i].x * rtSize.width / 4 / scale, rtSize.height / 4 + serverList[i].y * rtSize.width / 4 / scale),
                 m_pCornflowerBlueBrush,
-                1.0f
+                LINE_WIDTH
             );
             m_pRenderTarget->DrawLine(
-                D2D1::Point2F((time - 1) * 40, rtSize.height / 4 + SxO * 50),
-                D2D1::Point2F(time * 40, rtSize.height / 4 + Sx * 50),
+                D2D1::Point2F((i - 1) * rtSize.width / 2 / scale, rtSize.height / 4 * 3 + serverList[i - 1].x * rtSize.width / 4 / scale),
+                D2D1::Point2F(i * rtSize.width / 2 / scale, rtSize.height / 4 * 3 + serverList[i].x * rtSize.width / 4 / scale),
                 m_pCornflowerBlueBrush,
-                1.0f
+                LINE_WIDTH
             );
             m_pRenderTarget->DrawLine(
-                D2D1::Point2F((time - 1) * 40, rtSize.height / 4 * 3 + SyO * 50),
-                D2D1::Point2F(time * 40, rtSize.height / 4 * 3 + Sy * 50),
+                D2D1::Point2F(rtSize.width / 2 + (i - 1) * rtSize.width / 2 / scale, rtSize.height / 4 * 3 + serverList[i - 1].y * rtSize.width / 4 / scale),
+                D2D1::Point2F(rtSize.width / 2 + i * rtSize.width / 2 / scale, rtSize.height / 4 * 3 + serverList[i].y * rtSize.width / 4 / scale),
                 m_pCornflowerBlueBrush,
-                1.0f
+                LINE_WIDTH
             );
-            SxO = Sx;
-            SyO = Sy;
-            m_pRenderTarget->DrawLine(
-                D2D1::Point2F((time - 1) * 40, rtSize.height / 4 + CRxO * 50),
-                D2D1::Point2F(time * 40, rtSize.height / 4 + CRx * 50),
-                m_pLightSlateGrayBrush,
-                1.0f
-            );
-            m_pRenderTarget->DrawLine(
-                D2D1::Point2F((time - 1) * 40, rtSize.height / 4 * 3 + CRyO * 50),
-                D2D1::Point2F(time * 40, rtSize.height / 4 * 3 + CRy * 50),
-                m_pLightSlateGrayBrush,
-                1.0f
-            );
-            CRxO = CRx;
-            CRyO = CRy;
-            time++;
-            res = fscanf_s(fp, "%f %f %f %f %f %f\n", &Sx, &Sy, &Cx, &Cy, &CRx, &CRy);
         }
-        fclose(fp);
-        fp = NULL;
+
+        for(int i = frame - 1; i < frame + 1; i++)
+        {
+            if (i < 1) continue;
+
+            // Normal
+            m_pRenderTarget->DrawLine(
+                D2D1::Point2F(rtSize.width / 4 + normalClientList[i - 1].x * rtSize.width / 4 / scale, rtSize.height / 4 + normalClientList[i - 1].y * rtSize.width / 4 / scale),
+                D2D1::Point2F(rtSize.width / 4 + normalClientList[i].x * rtSize.width / 4 / scale, rtSize.height / 4 + normalClientList[i].y * rtSize.width / 4 / scale),
+                m_pLightSlateGrayBrush,
+                LINE_WIDTH
+            );
+            /*m_pRenderTarget->DrawLine(
+                D2D1::Point2F(rtSize.width / 4 + normalChaseList[i - 1].x * rtSize.width / 4 / scale, rtSize.height / 4 + normalChaseList[i - 1].y * rtSize.width / 4 / scale),
+                D2D1::Point2F(rtSize.width / 4 + normalChaseList[i].x * rtSize.width / 4 / scale, rtSize.height / 4 + normalChaseList[i].y * rtSize.width / 4 / scale),
+                m_pBlackBrush,
+                LINE_WIDTH
+            );*/
+            m_pRenderTarget->DrawLine(
+                D2D1::Point2F((i - 1) * rtSize.width / 2 / scale, rtSize.height / 4 * 3 + normalClientList[i - 1].x * rtSize.width / 4 / scale),
+                D2D1::Point2F(i * rtSize.width / 2 / scale, rtSize.height / 4 * 3 + normalClientList[i].x * rtSize.width / 4 / scale),
+                m_pLightSlateGrayBrush,
+                LINE_WIDTH
+            );
+            m_pRenderTarget->DrawLine(
+                D2D1::Point2F(rtSize.width / 2 + (i - 1) * rtSize.width / 2 / scale, rtSize.height / 4 * 3 + normalClientList[i - 1].y * rtSize.width / 4 / scale),
+                D2D1::Point2F(rtSize.width / 2 + i * rtSize.width / 2 / scale, rtSize.height / 4 * 3 + normalClientList[i].y * rtSize.width / 4 / scale),
+                m_pLightSlateGrayBrush,
+                LINE_WIDTH
+            );
+
+            // Sync
+            m_pRenderTarget->DrawLine(
+                D2D1::Point2F(rtSize.width / 4 + syncClientList[i - 1].x * rtSize.width / 4 / scale, rtSize.height / 4 + syncClientList[i - 1].y * rtSize.width / 4 / scale),
+                D2D1::Point2F(rtSize.width / 4 + syncClientList[i].x * rtSize.width / 4 / scale, rtSize.height / 4 + syncClientList[i].y * rtSize.width / 4 / scale),
+                m_pRedBrush,
+                LINE_WIDTH
+            );
+            /*m_pRenderTarget->DrawLine(
+                D2D1::Point2F(rtSize.width / 4 + syncChaseList[i - 1].x * rtSize.width / 4 / scale, rtSize.height / 4 + syncChaseList[i - 1].y * rtSize.width / 4 / scale),
+                D2D1::Point2F(rtSize.width / 4 + syncChaseList[i].x * rtSize.width / 4 / scale, rtSize.height / 4 + syncChaseList[i].y * rtSize.width / 4 / scale),
+                m_pBlackBrush,
+                LINE_WIDTH
+            );*/
+            m_pRenderTarget->DrawLine(
+                D2D1::Point2F((i - 1) * rtSize.width / 2 / scale, rtSize.height / 4 * 3 + syncClientList[i - 1].x * rtSize.width / 4 / scale),
+                D2D1::Point2F(i * rtSize.width / 2 / scale, rtSize.height / 4 * 3 + syncClientList[i].x * rtSize.width / 4 / scale),
+                m_pRedBrush,
+                LINE_WIDTH
+            );
+            m_pRenderTarget->DrawLine(
+                D2D1::Point2F(rtSize.width / 2 + (i - 1) * rtSize.width / 2 / scale, rtSize.height / 4 * 3 + syncClientList[i - 1].y * rtSize.width / 4 / scale),
+                D2D1::Point2F(rtSize.width / 2 + i * rtSize.width / 2 / scale, rtSize.height / 4 * 3 + syncClientList[i].y * rtSize.width / 4 / scale),
+                m_pRedBrush,
+                LINE_WIDTH
+            );
+        }
         hr = m_pRenderTarget->EndDraw();
     }
     if (hr == D2DERR_RECREATE_TARGET)
@@ -275,6 +365,83 @@ LRESULT DemoApp::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 PostQuitMessage(0);
             }
             result = 1;
+            wasHandled = true;
+            break;
+
+            case WM_TIMER:
+            {
+                pDemoApp->frame++;
+                if (pDemoApp->frame >= pDemoApp->serverList.size())
+                {
+                    pDemoApp->frame = 0;
+                }
+                InvalidateRect(hWnd, NULL, FALSE);
+            }
+            result = 0;
+            wasHandled = true;
+            break;
+
+            case WM_LBUTTONDOWN:
+            {
+                pDemoApp->posX = LOWORD(lParam);
+                pDemoApp->posY = HIWORD(lParam);
+            }
+            result = 0;
+            wasHandled = true;
+            break;
+
+            case WM_RBUTTONDOWN:
+            {
+                if (pDemoApp->timerOn)
+                {
+                    KillTimer(pDemoApp->m_hwnd, 0);
+                    pDemoApp->timerOn = false;
+                }
+                else
+                {
+                    pDemoApp->timerOn = SetTimer(pDemoApp->m_hwnd, 0, 100, NULL);
+                }
+                InvalidateRect(hWnd, NULL, FALSE);
+            }
+            result = 0;
+            wasHandled = true;
+            break;
+
+            case WM_MOUSEMOVE:
+            {
+                if (wParam & MK_LBUTTON)
+                {
+                    INT x = LOWORD(lParam);
+                    INT y = HIWORD(lParam);
+                    pDemoApp->transform.x += (x - pDemoApp->posX) / pDemoApp->wscale;
+                    pDemoApp->transform.y += (y - pDemoApp->posY) / pDemoApp->wscale;
+                    pDemoApp->posX = x;
+                    pDemoApp->posY = y;
+                    InvalidateRect(hWnd, NULL, FALSE);
+                }
+            }
+            result = 0;
+            wasHandled = true;
+            break;
+
+            case WM_MOUSEWHEEL:
+            {
+                INT data = GET_WHEEL_DELTA_WPARAM(wParam);
+                if (data > 0)
+                {
+                    pDemoApp->wscale += 1;
+                }
+                else
+                {
+                    pDemoApp->wscale -= 1;
+                }
+                if (pDemoApp->wscale < 1)
+                {
+                    pDemoApp->wscale = 1;
+                }
+                InvalidateRect(hWnd, NULL, FALSE);
+            }
+            result = 0;
             wasHandled = true;
             break;
             }
