@@ -13,8 +13,9 @@ DemoApp::DemoApp():
     FLOAT Sx = 0.f, Sy = 0.f;
     FLOAT Cx = 0.f, Cy = 0.f;
     FLOAT CRx = 0.f, CRy = 0.f;
+    FLOAT delay = 0.0f;
     fopen_s(&fp, "pointData", "r");
-    while(fscanf_s(fp, "%f %f %f %f %f %f", &Sx, &Sy, &Cx, &Cy, &CRx, &CRy) > 0)
+    while(fscanf_s(fp, "%f %f %f %f %f %f (%f)", &Sx, &Sy, &Cx, &Cy, &CRx, &CRy, &delay) > 0)
     {
         serverList.push_back(D2D1::Point2F(Sx, Sy));
         normalChaseList.push_back(D2D1::Point2F(Cx, Cy));
@@ -187,6 +188,13 @@ HRESULT DemoApp::OnRender()
         m_pRenderTarget->SetTransform(D2D1::Matrix3x2F::Identity());
         m_pRenderTarget->Clear(D2D1::ColorF(D2D1::ColorF::White));
         D2D1_SIZE_F rtSize = m_pRenderTarget->GetSize();
+        const FLOAT LEFT = rtSize.width / 4;
+        const FLOAT RIGHT = rtSize.width / 4 * 3;
+        const FLOAT UP = rtSize.height / 4;
+        const FLOAT DOWN = rtSize.width / 4 * 3;
+        const FLOAT AxisX = rtSize.width / 4 / scale;
+        const FLOAT AxisY = rtSize.height / 4 / scale;
+        const FLOAT AxisT = rtSize.width / 2 / scale;
 
         D2D1_MATRIX_3X2_F m1 = D2D1::Matrix3x2F::Translation(transform.x, transform.y);
         D2D1_MATRIX_3X2_F m2 = D2D1::Matrix3x2F::Scale(wscale, wscale);
@@ -206,79 +214,80 @@ HRESULT DemoApp::OnRender()
 
         for (int i = 1; i < frame + 1; i++)
         {
+            float xx, x, yy, y;
             // Server
+            xx = serverList[i - 1].x;
+            yy = serverList[i - 1].y;
+            x = serverList[i].x;
+            y = serverList[i].y;
             m_pRenderTarget->DrawLine(
-                D2D1::Point2F(rtSize.width / 4 + serverList[i - 1].x * rtSize.width / 4 / scale, rtSize.height / 4 + serverList[i - 1].y * rtSize.width / 4 / scale),
-                D2D1::Point2F(rtSize.width / 4 + serverList[i].x * rtSize.width / 4 / scale, rtSize.height / 4 + serverList[i].y * rtSize.width / 4 / scale),
+                D2D1::Point2F(LEFT + xx * AxisX, UP + yy * AxisY),
+                D2D1::Point2F(LEFT + x * AxisX, UP + y * AxisY),
                 m_pCornflowerBlueBrush,
                 LINE_WIDTH
             );
+
+            // Normal
+            // Render Position
+            xx = normalClientList[i - 1].x;
+            yy = normalClientList[i - 1].y;
+            x = normalClientList[i].x;
+            y = normalClientList[i].y;
             m_pRenderTarget->DrawLine(
-                D2D1::Point2F((i - 1) * rtSize.width / 2 / scale, rtSize.height / 4 * 3 + serverList[i - 1].x * rtSize.width / 4 / scale),
-                D2D1::Point2F(i * rtSize.width / 2 / scale, rtSize.height / 4 * 3 + serverList[i].x * rtSize.width / 4 / scale),
-                m_pCornflowerBlueBrush,
+                D2D1::Point2F(LEFT + xx * AxisX, UP + yy * AxisY + 4),
+                D2D1::Point2F(LEFT + x * AxisX, UP + y * AxisY + 4),
+                m_pLightSlateGrayBrush,
                 LINE_WIDTH
             );
+            // Server Position
+            xx = normalChaseList[i - 1].x;
+            yy = normalChaseList[i - 1].y;
+            x = normalChaseList[i].x;
+            y = normalChaseList[i].y;
             m_pRenderTarget->DrawLine(
-                D2D1::Point2F(rtSize.width / 2 + (i - 1) * rtSize.width / 2 / scale, rtSize.height / 4 * 3 + serverList[i - 1].y * rtSize.width / 4 / scale),
-                D2D1::Point2F(rtSize.width / 2 + i * rtSize.width / 2 / scale, rtSize.height / 4 * 3 + serverList[i].y * rtSize.width / 4 / scale),
-                m_pCornflowerBlueBrush,
+                D2D1::Point2F(LEFT + xx * AxisX, UP + yy * AxisY + 2),
+                D2D1::Point2F(LEFT + x * AxisX, UP + y * AxisY + 2),
+                m_pBlackBrush,
                 LINE_WIDTH
             );
         }
-
-        for(int i = frame - 1; i < frame + 1; i++)
+        for (int i = 1; i < serverList.size(); i++)
         {
-            if (i < 1) continue;
-
-            // Normal
+            float xx, x, yy, y;
+            //Delta
+            float ddeltaSC = sqrt(pow(normalChaseList[i - 1].x - serverList[i - 1].x, 2) + pow(normalChaseList[i - 1].y - serverList[i - 1].y, 2));
+            float deltaSC = sqrt(pow(normalChaseList[i].x - serverList[i].x, 2) + pow(normalChaseList[i].y - serverList[i].y, 2));
+            float ddeltaCR = sqrt(pow(normalChaseList[i - 1].x - normalClientList[i - 1].x, 2) + pow(normalChaseList[i - 1].y - normalClientList[i - 1].y, 2));
+            float deltaCR = sqrt(pow(normalChaseList[i].x - normalClientList[i].x, 2) + pow(normalChaseList[i].y - normalClientList[i].y, 2));
+            float ddeltaSR = sqrt(pow(normalClientList[i - 1].x - serverList[i - 1].x, 2) + pow(normalClientList[i - 1].y - serverList[i - 1].y, 2));
+            float deltaSR = sqrt(pow(normalClientList[i].x - serverList[i].x, 2) + pow(normalClientList[i].y - serverList[i].y, 2));
+            xx = i - 1.0f;
+            yy = ddeltaSC;
+            x = i;
+            y = deltaSC;
             m_pRenderTarget->DrawLine(
-                D2D1::Point2F(rtSize.width / 4 + normalClientList[i - 1].x * rtSize.width / 4 / scale, rtSize.height / 4 + normalClientList[i - 1].y * rtSize.width / 4 / scale),
-                D2D1::Point2F(rtSize.width / 4 + normalClientList[i].x * rtSize.width / 4 / scale, rtSize.height / 4 + normalClientList[i].y * rtSize.width / 4 / scale),
-                m_pLightSlateGrayBrush,
+                D2D1::Point2F(2 * LEFT + xx * AxisT, 2 * UP + yy * AxisY * 10),
+                D2D1::Point2F(2 * LEFT + x * AxisT, 2 * UP + y * AxisY * 10),
+                m_pCornflowerBlueBrush,
                 LINE_WIDTH
             );
-            /*m_pRenderTarget->DrawLine(
-                D2D1::Point2F(rtSize.width / 4 + normalChaseList[i - 1].x * rtSize.width / 4 / scale, rtSize.height / 4 + normalChaseList[i - 1].y * rtSize.width / 4 / scale),
-                D2D1::Point2F(rtSize.width / 4 + normalChaseList[i].x * rtSize.width / 4 / scale, rtSize.height / 4 + normalChaseList[i].y * rtSize.width / 4 / scale),
+            xx = i - 1.0f;
+            yy = ddeltaSC + ddeltaCR;
+            x = i;
+            y = deltaSC + deltaCR;
+            m_pRenderTarget->DrawLine(
+                D2D1::Point2F(2 * LEFT + xx * AxisT, 2 * UP + yy * AxisY * 10),
+                D2D1::Point2F(2 * LEFT + x * AxisT, 2 * UP + y * AxisY * 10),
                 m_pBlackBrush,
                 LINE_WIDTH
-            );*/
-            m_pRenderTarget->DrawLine(
-                D2D1::Point2F((i - 1) * rtSize.width / 2 / scale, rtSize.height / 4 * 3 + normalClientList[i - 1].x * rtSize.width / 4 / scale),
-                D2D1::Point2F(i * rtSize.width / 2 / scale, rtSize.height / 4 * 3 + normalClientList[i].x * rtSize.width / 4 / scale),
-                m_pLightSlateGrayBrush,
-                LINE_WIDTH
             );
+            xx = i - 1.0f;
+            yy = ddeltaSR;
+            x = i;
+            y = deltaSR;
             m_pRenderTarget->DrawLine(
-                D2D1::Point2F(rtSize.width / 2 + (i - 1) * rtSize.width / 2 / scale, rtSize.height / 4 * 3 + normalClientList[i - 1].y * rtSize.width / 4 / scale),
-                D2D1::Point2F(rtSize.width / 2 + i * rtSize.width / 2 / scale, rtSize.height / 4 * 3 + normalClientList[i].y * rtSize.width / 4 / scale),
-                m_pLightSlateGrayBrush,
-                LINE_WIDTH
-            );
-
-            // Sync
-            m_pRenderTarget->DrawLine(
-                D2D1::Point2F(rtSize.width / 4 + syncClientList[i - 1].x * rtSize.width / 4 / scale, rtSize.height / 4 + syncClientList[i - 1].y * rtSize.width / 4 / scale),
-                D2D1::Point2F(rtSize.width / 4 + syncClientList[i].x * rtSize.width / 4 / scale, rtSize.height / 4 + syncClientList[i].y * rtSize.width / 4 / scale),
-                m_pRedBrush,
-                LINE_WIDTH
-            );
-            /*m_pRenderTarget->DrawLine(
-                D2D1::Point2F(rtSize.width / 4 + syncChaseList[i - 1].x * rtSize.width / 4 / scale, rtSize.height / 4 + syncChaseList[i - 1].y * rtSize.width / 4 / scale),
-                D2D1::Point2F(rtSize.width / 4 + syncChaseList[i].x * rtSize.width / 4 / scale, rtSize.height / 4 + syncChaseList[i].y * rtSize.width / 4 / scale),
-                m_pBlackBrush,
-                LINE_WIDTH
-            );*/
-            m_pRenderTarget->DrawLine(
-                D2D1::Point2F((i - 1) * rtSize.width / 2 / scale, rtSize.height / 4 * 3 + syncClientList[i - 1].x * rtSize.width / 4 / scale),
-                D2D1::Point2F(i * rtSize.width / 2 / scale, rtSize.height / 4 * 3 + syncClientList[i].x * rtSize.width / 4 / scale),
-                m_pRedBrush,
-                LINE_WIDTH
-            );
-            m_pRenderTarget->DrawLine(
-                D2D1::Point2F(rtSize.width / 2 + (i - 1) * rtSize.width / 2 / scale, rtSize.height / 4 * 3 + syncClientList[i - 1].y * rtSize.width / 4 / scale),
-                D2D1::Point2F(rtSize.width / 2 + i * rtSize.width / 2 / scale, rtSize.height / 4 * 3 + syncClientList[i].y * rtSize.width / 4 / scale),
+                D2D1::Point2F(2 * LEFT + xx * AxisT, 2 * UP + yy * AxisY * 10),
+                D2D1::Point2F(2 * LEFT + x * AxisT, 2 * UP + y * AxisY * 10),
                 m_pRedBrush,
                 LINE_WIDTH
             );

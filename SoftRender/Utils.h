@@ -2,6 +2,14 @@
 #include <vector>
 #include <fstream>
 
+#ifndef Assert
+#if defined( DEBUG ) || defined( _DEBUG )
+#define Assert(b) do {if (!(b)) {OutputDebugStringA("Assert: " #b "\n");}} while(0)
+#else
+#define Assert(b)
+#endif //DEBUG || _DEBUG
+#endif
+
 namespace PW {
     inline bool isAndSetZero(float &value);
 
@@ -27,6 +35,7 @@ namespace PW {
         Vertex2F(float posX, float posY);
         ~Vertex2F();
         Vertex2F operator+(const Vertex2F &rhs) const;
+        Vertex2F operator-() const;
         Vertex2F operator-(const Vertex2F &rhs) const;
         Vertex2F operator*(const float rhs) const;
         float operator*(const Vertex2F &rhs) const;
@@ -50,19 +59,19 @@ namespace PW {
         ~GenerateSyncPosition();
     private:
         //Patameters
-        const size_t pointNumber_ = 80;
+        const size_t pointNumber_ = 100;
         const float directionRange_ = 12.0f;//(-Pi / range, Pi / range)
         const float delayMean_ = 5.0f;
-        const float delaySigma_ = 1.0f;
+        const float delaySigma_ = 4.8f;
 
         //Switches
         const bool noDelayOutput_ = true;
-        const bool accelVelocity_ = true;
+        const bool accelVelocity_ = false;
 
         //
         Rand *m_pRnd = nullptr;
         std::vector<Vertex2F> *m_pServerList_ = nullptr;
         std::vector<Vertex2F> *m_pClientNormalList_ = nullptr;
-        std::vector<Vertex2F> *m_pClientSyncList_ = nullptr;
+        std::vector<Vertex2F> *m_pClientChaseList_ = nullptr;
     };
 }

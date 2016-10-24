@@ -74,6 +74,13 @@ PW::Vertex2F PW::Vertex2F::operator+(const Vertex2F & rhs) const
     return Vertex2F(xx, yy);
 }
 
+PW::Vertex2F PW::Vertex2F::operator-() const
+{
+    float xx = 0.0f - this->x_;
+    float yy = 0.0f - this->y_;
+    return Vertex2F(xx, yy);
+}
+
 PW::Vertex2F PW::Vertex2F::operator-(const Vertex2F & rhs) const
 {
     float xx = this->x_ - rhs.x_;
@@ -144,28 +151,38 @@ float PW::Vertex2F::getLength()
 
 PW::Vertex2F PW::Vertex2F::zero()
 {
-    return Vertex2F();
+    return Vertex2F(0.0f, 0.0f);
 }
 
 PW::GenerateSyncPosition::GenerateSyncPosition()
 {
     m_pServerList_ = new std::vector<Vertex2F>;
-    /*Initialize random generator*/
+    m_pClientNormalList_ = new std::vector<Vertex2F>;
+    m_pClientChaseList_ = new std::vector<Vertex2F>;
+    /* Initialize random generator */
     _SYSTEMTIME st;
     GetLocalTime(&st);
     int seed = st.wMilliseconds;
     seed = seed * 1000 + seed;
     m_pRnd = new Rand(seed);
 
-    /*Generate path*/
+    /* Generate path */
     std::vector<Vertex2F> pointList;
     std::vector<Vertex2F>::iterator itPointList;
+    std::vector<float> pointDelayBuf;
+    std::vector<float>::iterator itPointDelay = pointDelayBuf.begin();
     pointList.push_back(Vertex2F(0.0f, 0.0f));
-    Vertex2F pointOld;
-    for (int i = 0; i < pointNumber_; i++)
+    pointDelayBuf.push_back(0.0f);
+    pointList.push_back(Vertex2F(0.0f, 0.0f));
+    float delay = m_pRnd->next();
+    delay = delay * delaySigma_ * 2.0f + delayMean_ - delaySigma_;
+    delay = delay / 10.0f;
+    pointDelayBuf.push_back(delay);
+    for (int i = 1; i <= pointNumber_; i++)
     {
         float rand = m_pRnd->next();
-        Vertex2F dir = pointList[pointList.size() - 1] - pointOld;
+        Assert(pointList.size() >= 2);
+        Vertex2F dir = pointList[pointList.size() - 1] - pointList[pointList.size() - 2];
         dir.normalize();
         float len = dir.getLength();
         if (PW::isAndSetZero(len))
@@ -178,87 +195,73 @@ PW::GenerateSyncPosition::GenerateSyncPosition()
             rand = rand / directionRange_ * 2 * PI - PI / directionRange_;
             dir.rotate(rand);
         }
-        pointOld = pointList[pointList.size() - 1];
-        pointList.push_back(pointOld + dir);
+        delay = m_pRnd->next();//(0, 1)
+        delay = delay * delaySigma_ * 2.0f + delayMean_ - delaySigma_;//(main - sigma, main + sigma)
+        delay = (delay + i) / 10.0f;//real time and scale
+        if (delay < pointDelayBuf[pointDelayBuf.size() - 1])
+        {
+            delay = pointDelayBuf[pointDelayBuf.size() - 1];
+        }
+        pointList.push_back(pointList[pointList.size() - 1] + dir);
+        pointDelayBuf.push_back(delay);
+        Assert(pointList.size() == pointDelayBuf.size());
     }
 
-    /*Simulate Normal Communication*/
+    /* Simulate Normal Communication */
     {
         float gameTime = 0.0f;
-        Vertex2F serverPosOld;
         Vertex2F serverPos;
         Vertex2F position;
-        std::vector<float> serverDelayBuf;
-        std::vector<Vertex2F> serverPosBuf;
+        std::vector<Vertex2F>::iterator itPos = pointList.begin() + 1;
         float speed = 10.0f;
-        itPointList = pointList.begin();
+        size_t counter = 0;
+        itPointList = pointList.begin() + 1;
+        itPointDelay = pointDelayBuf.begin() + 1;
         while (itPointList != pointList.end())
         {
-            if (serverDelayBuf.size() > 0)
-            {
-                for (int i = 0; i < serverDelayBuf.size(); i++)
-                {
-                    serverDelayBuf[i] -= 0.1;
-                }
-            }
-            float delay = m_pRnd->next();
-            delay = delay * delaySigma_ * 2.0f + delayMean_ - delaySigma_;
-            delay = delay / 10.0f;
-            serverPosBuf.push_back(pointList[0]);
-            serverDelayBuf.push_back(delay);
-            std::vector<float>::iterator itDelay = serverDelayBuf.begin();
-            std::vector<Vertex2F>::iterator itPos = serverPosBuf.begin();
-            float max = -10.0f;
-            while (itDelay != serverDelayBuf.end())
-            {
-                if (isAndSetZero(*itDelay) || *itDelay < 0)
-                {
-                    if (*itDelay > max)
-                    {
-                        max = *itDelay;
-                        serverPos = *itPos;
-                    }
-                    itDelay = serverDelayBuf.erase(itDelay);
-                    itPos = serverPosBuf.erase(itPos);
-                }
-                else
-                {
-                    itDelay++;
-                    itPos++;
-                }
-            }
-            Vertex2F dir = serverPosOld - position;
+            /* Chase */
+            Vertex2F dir = serverPos - position;
             float len = dir.getLength();
-            if (isAndSetZero(len))
+            if (len >= 0.25)
             {
                 dir.normalize();
-            }
-            else if (len < 1)
-            {
-            }
-            else if (!accelVelocity_)
-            {
-                dir.normalize();
-            }
-            else
-            {
-                dir = dir * sqrt(log10(len));
+                dir = dir * 0.25;
+                if (accelVelocity_)
+                {
+                    dir = dir * sqrt(log10(len * 4) + 1);
+                }
             }
             position = position + dir;
-            serverPosOld = serverPos;
-            gameTime += 0.1f;
 
-            m_pServerList_->push_back(pointList[0]);
-            m_pClientNormalList_->push_back(serverPos);
-            m_pClientSyncList_->push_back(position);
-            itPointList++;
+            /* Input & Output */
+            while (itPointDelay != pointDelayBuf.end())
+            {
+                float dt = *itPointDelay - gameTime;
+                if (isAndSetZero(dt) || dt < 0)
+                {
+                    serverPos = *itPos;
+                    itPointDelay++;
+                    itPos++;
+                    continue;
+                }
+                break;
+            }
+            if (counter % 4 == 0)
+            {
+                m_pServerList_->push_back(*itPointList);
+                m_pClientNormalList_->push_back(serverPos);
+                m_pClientChaseList_->push_back(position);
+                itPointList++;
+            }
+            gameTime += 0.025f;
+            counter++;
         }
 
         FILE *fp = nullptr;
         fopen_s(&fp, "pointData", "w");
         for (int i = 0; i < m_pServerList_->size(); i++)
         {
-            fprintf(fp, "%f %f %f %f %f %f\n", (*m_pServerList_)[i].getX(), (*m_pServerList_)[i].getY(), (*m_pClientNormalList_)[i].getX(), (*m_pClientNormalList_)[i].getY(), (*m_pClientSyncList_)[i].getX(), (*m_pClientSyncList_)[i].getY());
+            fprintf(fp, "%f %f %f %f %f %f (%f)\n", (*m_pServerList_)[i].getX(), (*m_pServerList_)[i].getY(), (*m_pClientNormalList_)[i].getX(), (*m_pClientNormalList_)[i].getY(), (*m_pClientChaseList_)[i].getX(), (*m_pClientChaseList_)[i].getY(), pointDelayBuf[i + 1]);
         }
         fclose(fp);
         fp = nullptr;

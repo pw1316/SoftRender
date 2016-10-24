@@ -83,7 +83,7 @@ private:
     const FLOAT WINDOW_HEIGHT = 800.f;
     const LPCSTR WINDOW_CLASS_NAME = "D2DSync";
     const FLOAT LINE_WIDTH = 0.5f;
-    INT scale;
+    INT scale = 1;
     INT frame = 0;
     BOOL timerOn = false;
     HWND m_hwnd;
