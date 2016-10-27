@@ -16,11 +16,11 @@ namespace PW {
     class Rand
     {
     public:
-        Rand();
-        Rand(int seed);
-        ~Rand();
-        void reset();
-        void reset(int seed);
+        Rand() :start_(0) {}
+        Rand(int seed) :start_(seed) {}
+        ~Rand() {}
+        void reset() { start_ = 0; }
+        void reset(int seed) { start_ = seed; }
         float next();
     private:
         const int a_ = 16807;
@@ -31,9 +31,9 @@ namespace PW {
     class Vertex2F
     {
     public:
-        Vertex2F();
-        Vertex2F(float posX, float posY);
-        ~Vertex2F();
+        Vertex2F() :x_(0.0f), y_(0.0f) { fixZero(); }
+        Vertex2F(float posX, float posY) : x_(posX), y_(posY) { fixZero(); }
+        ~Vertex2F() {}
         Vertex2F operator+(const Vertex2F &rhs) const;
         Vertex2F operator-() const;
         Vertex2F operator-(const Vertex2F &rhs) const;
@@ -46,10 +46,13 @@ namespace PW {
         float getX();
         float getY();
         float getLength();
+        void setX(float x);
+        void setY(float y);
 
         static Vertex2F zero();
     private:
         float x_, y_;
+        inline Vertex2F & fixZero();
     };
 
     class GenerateSyncPosition
@@ -57,6 +60,9 @@ namespace PW {
     public:
         GenerateSyncPosition();
         ~GenerateSyncPosition();
+        std::vector<Vertex2F> getServerList() { return *m_pServerList_; }
+        std::vector<Vertex2F> getClientServerList() { return *m_pClientServerList_; }
+        std::vector<Vertex2F> getClientPosition() { return *m_pClientPositionList_; }
     private:
         //Patameters
         const size_t pointNumber_ = 100;
@@ -65,13 +71,11 @@ namespace PW {
         const float delaySigma_ = 4.8f;
 
         //Switches
-        const bool noDelayOutput_ = true;
         const bool accelVelocity_ = false;
 
-        //
         Rand *m_pRnd = nullptr;
         std::vector<Vertex2F> *m_pServerList_ = nullptr;
-        std::vector<Vertex2F> *m_pClientNormalList_ = nullptr;
-        std::vector<Vertex2F> *m_pClientChaseList_ = nullptr;
+        std::vector<Vertex2F> *m_pClientServerList_ = nullptr;
+        std::vector<Vertex2F> *m_pClientPositionList_ = nullptr;
     };
 }

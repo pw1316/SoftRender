@@ -53,9 +53,6 @@ public:
     void RunMessageLoop();
 
 private:
-    // Initialize device-independent resources.
-    HRESULT CreateDeviceIndependentResources();
-
     // Initialize device-dependent resources.
     HRESULT CreateDeviceResources();
 
@@ -79,14 +76,17 @@ private:
         LPARAM lParam
     );
 private:
+    //D2D params
     const FLOAT WINDOW_WIDTH = 800.f;
     const FLOAT WINDOW_HEIGHT = 800.f;
     const LPCSTR WINDOW_CLASS_NAME = "D2DSync";
     const FLOAT LINE_WIDTH = 0.5f;
-    INT scale = 1;
+
+    //D2D Vars
+    INT scaleWorld = 1;
     INT frame = 0;
     BOOL timerOn = false;
-    HWND m_hwnd;
+    HWND m_hwnd = nullptr;
     ID2D1Factory* m_pDirect2dFactory;
     ID2D1HwndRenderTarget* m_pRenderTarget;
     ID2D1SolidColorBrush* m_pLightSlateGrayBrush;
@@ -94,6 +94,7 @@ private:
     ID2D1SolidColorBrush* m_pRedBrush;
     ID2D1SolidColorBrush* m_pBlackBrush;
 
+    //Sync Vars
     std::vector<D2D1_POINT_2F> serverList;
     std::vector<D2D1_POINT_2F> normalClientList;
     std::vector<D2D1_POINT_2F> normalChaseList;
@@ -102,5 +103,5 @@ private:
 
     INT posX, posY;
     D2D_POINT_2F transform;
-    FLOAT wscale = 1;
+    FLOAT scaleView = 1;
 };

@@ -18,28 +18,6 @@ inline bool PW::isAndSetZero(float &value)
 }
 
 /*Class Rand*/
-PW::Rand::Rand() :start_(1)
-{
-}
-
-PW::Rand::Rand(int seed) : start_(seed)
-{
-}
-
-PW::Rand::~Rand()
-{
-}
-
-void PW::Rand::reset()
-{
-    start_ = 1;
-}
-
-void PW::Rand::reset(int seed)
-{
-    start_ = seed;
-}
-
 float PW::Rand::next()
 {
     int q, r, next;
@@ -55,18 +33,6 @@ float PW::Rand::next()
 }
 
 /*Class Vertex2F*/
-PW::Vertex2F::Vertex2F() :x_(0.0f), y_(0.0f)
-{
-}
-
-PW::Vertex2F::Vertex2F(float posX, float posY) : x_(posX), y_(posY)
-{
-}
-
-PW::Vertex2F::~Vertex2F()
-{
-}
-
 PW::Vertex2F PW::Vertex2F::operator+(const Vertex2F & rhs) const
 {
     float xx = this->x_ + rhs.x_;
@@ -98,6 +64,7 @@ PW::Vertex2F PW::Vertex2F::operator*(const float rhs) const
 float PW::Vertex2F::operator*(const Vertex2F & rhs) const
 {
     float res = this->x_ * rhs.x_ + this->y_ * rhs.y_;
+    isAndSetZero(res);
     return res;
 }
 
@@ -108,7 +75,7 @@ PW::Vertex2F & PW::Vertex2F::operator=(const Vertex2F & rhs)
         x_ = rhs.x_;
         y_ = rhs.y_;
     }
-    return *this;
+    return this->fixZero();
 }
 
 void PW::Vertex2F::normalize()
@@ -119,6 +86,7 @@ void PW::Vertex2F::normalize()
         x_ = x_ / len;
         y_ = y_ / len;
     }
+    fixZero();
 }
 
 void PW::Vertex2F::rotate(float angle)
@@ -128,8 +96,7 @@ void PW::Vertex2F::rotate(float angle)
     yy = x_ * sin(angle) + y_ * cos(angle);
     x_ = xx;
     y_ = yy;
-    isAndSetZero(x_);
-    isAndSetZero(y_);
+    fixZero();
 }
 
 float PW::Vertex2F::getX()
@@ -144,9 +111,21 @@ float PW::Vertex2F::getY()
 
 float PW::Vertex2F::getLength()
 {
-    isAndSetZero(x_);
-    isAndSetZero(y_);
-    return sqrt(x_ * x_ + y_ * y_);
+    float res = sqrt(x_ * x_ + y_ * y_);
+    isAndSetZero(res);
+    return res;
+}
+
+void PW::Vertex2F::setX(float x)
+{
+    x_ = x;
+    fixZero();
+}
+
+void PW::Vertex2F::setY(float y)
+{
+    y_ = y;
+    fixZero();
 }
 
 PW::Vertex2F PW::Vertex2F::zero()
@@ -154,11 +133,19 @@ PW::Vertex2F PW::Vertex2F::zero()
     return Vertex2F(0.0f, 0.0f);
 }
 
+inline PW::Vertex2F & PW::Vertex2F::fixZero()
+{
+    isAndSetZero(x_);
+    isAndSetZero(y_);
+    return *this;
+}
+
+/*Class GenPos*/
 PW::GenerateSyncPosition::GenerateSyncPosition()
 {
     m_pServerList_ = new std::vector<Vertex2F>;
-    m_pClientNormalList_ = new std::vector<Vertex2F>;
-    m_pClientChaseList_ = new std::vector<Vertex2F>;
+    m_pClientServerList_ = new std::vector<Vertex2F>;
+    m_pClientPositionList_ = new std::vector<Vertex2F>;
     /* Initialize random generator */
     _SYSTEMTIME st;
     GetLocalTime(&st);
@@ -185,7 +172,7 @@ PW::GenerateSyncPosition::GenerateSyncPosition()
         Vertex2F dir = pointList[pointList.size() - 1] - pointList[pointList.size() - 2];
         dir.normalize();
         float len = dir.getLength();
-        if (PW::isAndSetZero(len))
+        if (len == 0.0f)
         {
             rand = rand * 2 * PI;
             dir = Vertex2F(cos(rand), sin(rand));
@@ -213,7 +200,6 @@ PW::GenerateSyncPosition::GenerateSyncPosition()
         Vertex2F serverPos;
         Vertex2F position;
         std::vector<Vertex2F>::iterator itPos = pointList.begin() + 1;
-        float speed = 10.0f;
         size_t counter = 0;
         itPointList = pointList.begin() + 1;
         itPointDelay = pointDelayBuf.begin() + 1;
@@ -222,13 +208,13 @@ PW::GenerateSyncPosition::GenerateSyncPosition()
             /* Chase */
             Vertex2F dir = serverPos - position;
             float len = dir.getLength();
-            if (len >= 0.25)
+            if (len >= 0.2)
             {
                 dir.normalize();
-                dir = dir * 0.25;
+                dir = dir * 0.2;
                 if (accelVelocity_)
                 {
-                    dir = dir * sqrt(log10(len * 4) + 1);
+                    dir = dir * sqrt(log10(len * 5) + 1);
                 }
             }
             position = position + dir;
@@ -246,25 +232,16 @@ PW::GenerateSyncPosition::GenerateSyncPosition()
                 }
                 break;
             }
-            if (counter % 4 == 0)
+            if (counter % 5 == 0)
             {
                 m_pServerList_->push_back(*itPointList);
-                m_pClientNormalList_->push_back(serverPos);
-                m_pClientChaseList_->push_back(position);
+                m_pClientServerList_->push_back(serverPos);
+                m_pClientPositionList_->push_back(position);
                 itPointList++;
             }
-            gameTime += 0.025f;
+            gameTime += 0.02f;
             counter++;
         }
-
-        FILE *fp = nullptr;
-        fopen_s(&fp, "pointData", "w");
-        for (int i = 0; i < m_pServerList_->size(); i++)
-        {
-            fprintf(fp, "%f %f %f %f %f %f (%f)\n", (*m_pServerList_)[i].getX(), (*m_pServerList_)[i].getY(), (*m_pClientNormalList_)[i].getX(), (*m_pClientNormalList_)[i].getY(), (*m_pClientChaseList_)[i].getX(), (*m_pClientChaseList_)[i].getY(), pointDelayBuf[i + 1]);
-        }
-        fclose(fp);
-        fp = nullptr;
     }
     
 }
@@ -273,4 +250,6 @@ PW::GenerateSyncPosition::~GenerateSyncPosition()
 {
     delete m_pRnd;
     delete m_pServerList_;
+    delete m_pClientServerList_;
+    delete m_pClientPositionList_;
 }

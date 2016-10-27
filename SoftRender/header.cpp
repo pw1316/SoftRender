@@ -3,7 +3,6 @@
 #include <string>
 
 DemoApp::DemoApp():
-    m_hwnd(NULL),
     m_pDirect2dFactory(NULL),
     m_pRenderTarget(NULL),
     m_pLightSlateGrayBrush(NULL),
@@ -14,15 +13,6 @@ DemoApp::DemoApp():
     FLOAT Cx = 0.f, Cy = 0.f;
     FLOAT CRx = 0.f, CRy = 0.f;
     FLOAT delay = 0.0f;
-    fopen_s(&fp, "pointData", "r");
-    while(fscanf_s(fp, "%f %f %f %f %f %f (%f)", &Sx, &Sy, &Cx, &Cy, &CRx, &CRy, &delay) > 0)
-    {
-        serverList.push_back(D2D1::Point2F(Sx, Sy));
-        normalChaseList.push_back(D2D1::Point2F(Cx, Cy));
-        normalClientList.push_back(D2D1::Point2F(CRx, CRy));
-    }
-    fclose(fp);
-    fp = NULL;
 
     fopen_s(&fp, "pointData2", "r");
     while (fscanf_s(fp, "%f %f %f %f %f %f", &Sx, &Sy, &Cx, &Cy, &CRx, &CRy) > 0)
@@ -32,10 +22,10 @@ DemoApp::DemoApp():
     }
     fclose(fp);
     fp = NULL;
-    scale = serverList.size() - 1;
-    if (scale < 1)
+    scaleWorld = serverList.size() - 1;
+    if (scaleWorld < 1)
     {
-        scale = 1;
+        scaleWorld = 1;
     }
 }
 
@@ -49,8 +39,9 @@ DemoApp::~DemoApp()
 
 HRESULT DemoApp::Initialize()
 {
-    HRESULT hr;
-    hr = CreateDeviceIndependentResources();
+    HRESULT hr = S_OK;
+    // Create a Direct2D factory.
+    hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &m_pDirect2dFactory);
 
     if (SUCCEEDED(hr))
     {
@@ -107,14 +98,6 @@ void DemoApp::RunMessageLoop()
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
-}
-
-HRESULT DemoApp::CreateDeviceIndependentResources()
-{
-    HRESULT hr = S_OK;
-    // Create a Direct2D factory.
-    hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &m_pDirect2dFactory);
-    return hr;
 }
 
 HRESULT DemoApp::CreateDeviceResources()
@@ -192,12 +175,12 @@ HRESULT DemoApp::OnRender()
         const FLOAT RIGHT = rtSize.width / 4 * 3;
         const FLOAT UP = rtSize.height / 4;
         const FLOAT DOWN = rtSize.width / 4 * 3;
-        const FLOAT AxisX = rtSize.width / 4 / scale;
-        const FLOAT AxisY = rtSize.height / 4 / scale;
-        const FLOAT AxisT = rtSize.width / 2 / scale;
+        const FLOAT AxisX = rtSize.width / 4 / scaleWorld;
+        const FLOAT AxisY = rtSize.height / 4 / scaleWorld;
+        const FLOAT AxisT = rtSize.width / 2 / scaleWorld;
 
         D2D1_MATRIX_3X2_F m1 = D2D1::Matrix3x2F::Translation(transform.x, transform.y);
-        D2D1_MATRIX_3X2_F m2 = D2D1::Matrix3x2F::Scale(wscale, wscale);
+        D2D1_MATRIX_3X2_F m2 = D2D1::Matrix3x2F::Scale(scaleView, scaleView);
         m_pRenderTarget->SetTransform(m1 * m2);
         m_pRenderTarget->DrawLine(
             D2D1::Point2F(rtSize.width / 2, 0),
@@ -422,8 +405,8 @@ LRESULT DemoApp::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 {
                     INT x = LOWORD(lParam);
                     INT y = HIWORD(lParam);
-                    pDemoApp->transform.x += (x - pDemoApp->posX) / pDemoApp->wscale;
-                    pDemoApp->transform.y += (y - pDemoApp->posY) / pDemoApp->wscale;
+                    pDemoApp->transform.x += (x - pDemoApp->posX) / pDemoApp->scaleView;
+                    pDemoApp->transform.y += (y - pDemoApp->posY) / pDemoApp->scaleView;
                     pDemoApp->posX = x;
                     pDemoApp->posY = y;
                     InvalidateRect(hWnd, NULL, FALSE);
@@ -438,15 +421,15 @@ LRESULT DemoApp::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 INT data = GET_WHEEL_DELTA_WPARAM(wParam);
                 if (data > 0)
                 {
-                    pDemoApp->wscale += 1;
+                    pDemoApp->scaleView += 1;
                 }
                 else
                 {
-                    pDemoApp->wscale -= 1;
+                    pDemoApp->scaleView -= 1;
                 }
-                if (pDemoApp->wscale < 1)
+                if (pDemoApp->scaleView < 1)
                 {
-                    pDemoApp->wscale = 1;
+                    pDemoApp->scaleView = 1;
                 }
                 InvalidateRect(hWnd, NULL, FALSE);
             }
