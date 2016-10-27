@@ -87,12 +87,12 @@ private:
     INT frame = 0;
     BOOL timerOn = false;
     HWND m_hwnd = nullptr;
-    ID2D1Factory* m_pDirect2dFactory;
-    ID2D1HwndRenderTarget* m_pRenderTarget;
-    ID2D1SolidColorBrush* m_pLightSlateGrayBrush;
-    ID2D1SolidColorBrush* m_pCornflowerBlueBrush;
-    ID2D1SolidColorBrush* m_pRedBrush;
-    ID2D1SolidColorBrush* m_pBlackBrush;
+    ID2D1Factory* m_pDirect2dFactory = nullptr;
+    ID2D1HwndRenderTarget* m_pRenderTarget = nullptr;
+    ID2D1SolidColorBrush* m_pLightSlateGrayBrush = nullptr;
+    ID2D1SolidColorBrush* m_pCornflowerBlueBrush = nullptr;
+    ID2D1SolidColorBrush* m_pRedBrush = nullptr;
+    ID2D1SolidColorBrush* m_pBlackBrush = nullptr;
 
     //Sync Vars
     std::vector<D2D1_POINT_2F> serverList;

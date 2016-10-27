@@ -59,13 +59,16 @@ namespace PW {
     {
     public:
         GenerateSyncPosition();
+        GenerateSyncPosition(ULONG pNum);
         ~GenerateSyncPosition();
-        std::vector<Vertex2F> getServerList() { return *m_pServerList_; }
-        std::vector<Vertex2F> getClientServerList() { return *m_pClientServerList_; }
-        std::vector<Vertex2F> getClientPosition() { return *m_pClientPositionList_; }
+        void generate();
+        void reset();
+        std::vector<Vertex2F> getServerList();
+        std::vector<Vertex2F> getClientServerList();
+        std::vector<Vertex2F> getClientPosition();
     private:
         //Patameters
-        const size_t pointNumber_ = 100;
+        ULONG pointNumber_ = 100;
         const float directionRange_ = 12.0f;//(-Pi / range, Pi / range)
         const float delayMean_ = 5.0f;
         const float delaySigma_ = 4.8f;
@@ -73,7 +76,8 @@ namespace PW {
         //Switches
         const bool accelVelocity_ = false;
 
-        Rand *m_pRnd = nullptr;
+        bool inited = false;
+        Rand *m_pRand_ = nullptr;
         std::vector<Vertex2F> *m_pServerList_ = nullptr;
         std::vector<Vertex2F> *m_pClientServerList_ = nullptr;
         std::vector<Vertex2F> *m_pClientPositionList_ = nullptr;

@@ -2,17 +2,12 @@
 #include <cstdio>
 #include <string>
 
-DemoApp::DemoApp():
-    m_pDirect2dFactory(NULL),
-    m_pRenderTarget(NULL),
-    m_pLightSlateGrayBrush(NULL),
-    m_pCornflowerBlueBrush(NULL)
+DemoApp::DemoApp()
 {
     FILE *fp = NULL;
     FLOAT Sx = 0.f, Sy = 0.f;
     FLOAT Cx = 0.f, Cy = 0.f;
     FLOAT CRx = 0.f, CRy = 0.f;
-    FLOAT delay = 0.0f;
 
     fopen_s(&fp, "pointData2", "r");
     while (fscanf_s(fp, "%f %f %f %f %f %f", &Sx, &Sy, &Cx, &Cy, &CRx, &CRy) > 0)

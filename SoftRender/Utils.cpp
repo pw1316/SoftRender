@@ -1,6 +1,4 @@
-#include <algorithm>
 #include <cmath>
-#include <fstream>
 #include <windows.h>
 
 #include "Utils.h"
@@ -143,16 +141,39 @@ inline PW::Vertex2F & PW::Vertex2F::fixZero()
 /*Class GenPos*/
 PW::GenerateSyncPosition::GenerateSyncPosition()
 {
-    m_pServerList_ = new std::vector<Vertex2F>;
-    m_pClientServerList_ = new std::vector<Vertex2F>;
-    m_pClientPositionList_ = new std::vector<Vertex2F>;
     /* Initialize random generator */
     _SYSTEMTIME st;
     GetLocalTime(&st);
     int seed = st.wMilliseconds;
     seed = seed * 1000 + seed;
-    m_pRnd = new Rand(seed);
+    m_pRand_ = new Rand(seed);
+}
 
+PW::GenerateSyncPosition::GenerateSyncPosition(ULONG pNum)
+{
+    /* Initialize random generator */
+    _SYSTEMTIME st;
+    GetLocalTime(&st);
+    int seed = st.wMilliseconds;
+    seed = seed * 1000 + seed;
+    m_pRand_ = new Rand(seed);
+    pointNumber_ = pNum;
+}
+
+PW::GenerateSyncPosition::~GenerateSyncPosition()
+{
+    delete m_pRand_;
+    if (m_pServerList_ != nullptr) {
+        Assert(m_pClientServerList_ != nullptr);
+        Assert(m_pClientPositionList_ != nullptr);
+        delete m_pServerList_;
+        delete m_pClientServerList_;
+        delete m_pClientPositionList_;
+    }
+}
+
+void PW::GenerateSyncPosition::generate()
+{
     /* Generate path */
     std::vector<Vertex2F> pointList;
     std::vector<Vertex2F>::iterator itPointList;
@@ -161,13 +182,13 @@ PW::GenerateSyncPosition::GenerateSyncPosition()
     pointList.push_back(Vertex2F(0.0f, 0.0f));
     pointDelayBuf.push_back(0.0f);
     pointList.push_back(Vertex2F(0.0f, 0.0f));
-    float delay = m_pRnd->next();
+    float delay = m_pRand_->next();
     delay = delay * delaySigma_ * 2.0f + delayMean_ - delaySigma_;
     delay = delay / 10.0f;
     pointDelayBuf.push_back(delay);
     for (int i = 1; i <= pointNumber_; i++)
     {
-        float rand = m_pRnd->next();
+        float rand = m_pRand_->next();
         Assert(pointList.size() >= 2);
         Vertex2F dir = pointList[pointList.size() - 1] - pointList[pointList.size() - 2];
         dir.normalize();
@@ -182,7 +203,7 @@ PW::GenerateSyncPosition::GenerateSyncPosition()
             rand = rand / directionRange_ * 2 * PI - PI / directionRange_;
             dir.rotate(rand);
         }
-        delay = m_pRnd->next();//(0, 1)
+        delay = m_pRand_->next();//(0, 1)
         delay = delay * delaySigma_ * 2.0f + delayMean_ - delaySigma_;//(main - sigma, main + sigma)
         delay = (delay + i) / 10.0f;//real time and scale
         if (delay < pointDelayBuf[pointDelayBuf.size() - 1])
@@ -243,13 +264,47 @@ PW::GenerateSyncPosition::GenerateSyncPosition()
             counter++;
         }
     }
-    
+    inited = true;
 }
 
-PW::GenerateSyncPosition::~GenerateSyncPosition()
+void PW::GenerateSyncPosition::reset()
 {
-    delete m_pRnd;
-    delete m_pServerList_;
-    delete m_pClientServerList_;
-    delete m_pClientPositionList_;
+    if (m_pServerList_ != nullptr) {
+        Assert(m_pClientServerList_ != nullptr);
+        Assert(m_pClientPositionList_ != nullptr);
+        delete m_pServerList_;
+        delete m_pClientServerList_;
+        delete m_pClientPositionList_;
+    }
+    inited = false;
+}
+
+std::vector<PW::Vertex2F> PW::GenerateSyncPosition::getServerList()
+{
+    if (m_pServerList_ != nullptr)
+    {
+        Assert(m_pClientServerList_ != nullptr);
+        Assert(m_pClientPositionList_ != nullptr);
+        return *m_pServerList_;
+    }
+}
+
+std::vector<PW::Vertex2F> PW::GenerateSyncPosition::getClientServerList()
+{
+    if (m_pClientServerList_ != nullptr)
+    {
+        Assert(m_pServerList_ != nullptr);
+        Assert(m_pClientPositionList_ != nullptr);
+        return *m_pClientServerList_;
+    }
+}
+
+std::vector<PW::Vertex2F> PW::GenerateSyncPosition::getClientPosition()
+{
+    if (m_pClientPositionList_ != nullptr)
+    {
+        Assert(m_pServerList_ != nullptr);
+        Assert(m_pClientServerList_ != nullptr);
+        return *m_pClientPositionList_;
+    }
 }
