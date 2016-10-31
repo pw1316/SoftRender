@@ -19,7 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{76F2DCB0-AD6F-4D09-94EB-E1EB1FF5B548}</ProjectGuid>
+    <ProjectGuid>{5442BF1B-1EEA-445C-9C1A-C2D687452FB7}</ProjectGuid>
     <RootNamespace>SoftRender</RootNamespace>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
@@ -75,9 +75,6 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
     </ClCompile>
-    <Link>
-      <AdditionalDependencies>d2d1.lib;d3d11.lib;%(AdditionalDependencies)</AdditionalDependencies>
-    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -113,13 +110,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="header.cpp" />
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="Utils.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="header.h" />
-    <ClInclude Include="Utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
