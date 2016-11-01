@@ -47,11 +47,15 @@ private:
 private:
     static PWGL *instance_;
     static LPCSTR WINDOW_CLASS_NAME;
-    const static UINT WINDOW_WIDTH;
-    const static UINT WINDOW_HEIGHT;
+    const static INT WINDOW_WIDTH;
+    const static INT WINDOW_HEIGHT;
 
     HWND hWND_ = nullptr;
     HDC hDC_ = nullptr;
     HDC hMemDC_ = nullptr;
     HBITMAP hBITMAP_ = nullptr;
+    BITMAPINFO bmpInfo_ = {};
+    UINT *bmpBuffer_ = nullptr;
+
+    int textX = 20, textY = 450;
 };

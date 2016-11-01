@@ -3,8 +3,8 @@
 /* Static Menber */
 PWGL *PWGL::instance_ = nullptr;
 LPCSTR PWGL::WINDOW_CLASS_NAME = "PWGL";
-const UINT PWGL::WINDOW_WIDTH = 800;
-const UINT PWGL::WINDOW_HEIGHT = 600;
+const INT PWGL::WINDOW_WIDTH = 800;
+const INT PWGL::WINDOW_HEIGHT = 600;
 
 /* Methods */
 PWGL * PWGL::getInstance()
@@ -49,7 +49,7 @@ HRESULT PWGL::initWindow()
         0,
         PWGL::WINDOW_CLASS_NAME,//Class name
         "SoftRender",//Window name
-        WS_OVERLAPPEDWINDOW,
+        WS_OVERLAPPEDWINDOW ^ WS_THICKFRAME ^ WS_MAXIMIZEBOX,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
         PWGL::WINDOW_WIDTH,
@@ -79,7 +79,18 @@ HRESULT PWGL::initDevice()
     hMemDC_ = CreateCompatibleDC(hDC_);
     hBITMAP_ = CreateCompatibleBitmap(hDC_, WINDOW_WIDTH, WINDOW_HEIGHT);
     SelectObject(hMemDC_, hBITMAP_);
-
+    bmpInfo_.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);//结构体的字节数
+    bmpInfo_.bmiHeader.biWidth = WINDOW_WIDTH;//以像素为单位的位图宽
+    bmpInfo_.bmiHeader.biHeight = -WINDOW_HEIGHT;//以像素为单位的位图高,若为负，表示以左上角为原点，否则以左下角为原点
+    bmpInfo_.bmiHeader.biPlanes = 1;//目标设备的平面数，必须设置为1
+    bmpInfo_.bmiHeader.biBitCount = 32; //位图中每个像素的位数
+    bmpInfo_.bmiHeader.biCompression = BI_RGB;
+    bmpInfo_.bmiHeader.biSizeImage = 0;
+    bmpInfo_.bmiHeader.biXPelsPerMeter = 0;
+    bmpInfo_.bmiHeader.biYPelsPerMeter = 0;
+    bmpInfo_.bmiHeader.biClrUsed = 0;
+    bmpInfo_.bmiHeader.biClrImportant = 0;
+    hBITMAP_ = CreateDIBSection(hMemDC_, &bmpInfo_, DIB_RGB_COLORS, (void**)&bmpBuffer_, NULL, 0);
     return hr;
 }
 
@@ -108,7 +119,21 @@ PWGL::~PWGL()
 
 HRESULT PWGL::onRender()
 {
-    return E_NOTIMPL;
+    /* Reset*/
+    for (int i = 0; i < WINDOW_WIDTH * WINDOW_HEIGHT; i++)
+    {
+        bmpBuffer_[i] = 0x00D7C4BB;
+    }
+
+    /*TODO Render*/
+
+    /* Copy buffer */
+    SetBkColor(hMemDC_, RGB(0xD7, 0xC4, 0xBB));
+    SetTextColor(hMemDC_, RGB(0xD0, 0x10, 0x4C));
+    TextOut(hMemDC_, 0, 0, "FPS:", 4);
+    SelectObject(hMemDC_, hBITMAP_);
+    BitBlt(hDC_, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, hMemDC_, 0, 0, SRCCOPY);
+    return S_OK;
 }
 
 void PWGL::onResize(UINT width, UINT height)

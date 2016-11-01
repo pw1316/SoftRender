@@ -21,6 +21,9 @@
     <ClCompile Include="pwgl.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="Vertex.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pwgl.h">
