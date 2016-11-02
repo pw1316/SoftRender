@@ -1,5 +1,7 @@
 #pragma once
-#include <windows.h>
+#include "common.h"
+#include "Vertex.h"
+#include "Matrix.h"
 
 /* Safe release for COM components */
 template<class Interface>
@@ -13,14 +15,9 @@ inline void SafeRelease(Interface **ppInterfaceToRelease)
     }
 }
 
-/* Define assertion */
-#ifndef Assert
-#if defined( DEBUG ) || defined( _DEBUG )
-#define Assert(b) do {if (!(b)) {OutputDebugStringA("Assert: " #b "\n");}} while(0)
-#else
-#define Assert(b)
-#endif //DEBUG || _DEBUG
-#endif
+typedef struct __TriangleIndex {
+    int p0, p1, p2;
+} TriangleIndex;
 
 /* Current hInstance */
 #ifndef HINST_THISCOMPONENT
@@ -57,5 +54,11 @@ private:
     BITMAPINFO bmpInfo_ = {};
     UINT *bmpBuffer_ = nullptr;
 
-    int textX = 20, textY = 450;
+    Vertex3F vertexBuffer_[8];
+    TriangleIndex indexBuffer_[12];
+    /* Transform */
+    Vertex3F posInWorld = Vertex3F(0.0f, 0.0f, 0.0f);
+    FLOAT rotX = 45.0f;
+    FLOAT rotY = 0.0f;
+    FLOAT rotZ = 0.0f;
 };

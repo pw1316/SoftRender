@@ -91,6 +91,28 @@ HRESULT PWGL::initDevice()
     bmpInfo_.bmiHeader.biClrUsed = 0;
     bmpInfo_.bmiHeader.biClrImportant = 0;
     hBITMAP_ = CreateDIBSection(hMemDC_, &bmpInfo_, DIB_RGB_COLORS, (void**)&bmpBuffer_, NULL, 0);
+    
+    vertexBuffer_[0] = Vertex3F(-0.5f, -0.5f, -0.5f);
+    vertexBuffer_[1] = Vertex3F(-0.5f, -0.5f, 0.5f);
+    vertexBuffer_[2] = Vertex3F(-0.5f, 0.5f, -0.5f);
+    vertexBuffer_[3] = Vertex3F(-0.5f, 0.5f, 0.5f);
+    vertexBuffer_[4] = Vertex3F(0.5f, -0.5f, -0.5f);
+    vertexBuffer_[5] = Vertex3F(0.5f, -0.5f, 0.5f);
+    vertexBuffer_[6] = Vertex3F(0.5f, 0.5f, -0.5f);
+    vertexBuffer_[7] = Vertex3F(0.5f, 0.5f, 0.5f);
+
+    indexBuffer_[0] = { 1, 5, 7 };
+    indexBuffer_[1] = { 1, 7, 3 };
+    indexBuffer_[2] = { 5, 4, 6 };
+    indexBuffer_[3] = { 5, 6, 7 };
+    indexBuffer_[4] = { 4, 0, 2 };
+    indexBuffer_[5] = { 4, 2, 6 };
+    indexBuffer_[6] = { 0, 1, 3 };
+    indexBuffer_[7] = { 0, 3, 2 };
+    indexBuffer_[8] = { 3, 7, 6 };
+    indexBuffer_[9] = { 3, 6, 2 };
+    indexBuffer_[10] = { 0, 4, 5 };
+    indexBuffer_[11] = { 0, 5, 1 };
     return hr;
 }
 
@@ -126,6 +148,8 @@ HRESULT PWGL::onRender()
     }
 
     /*TODO Render*/
+    Matrix4x4 transform;
+    transform.setRotate(1.0f, 1.0f, 1.0f, rotX / 180.0f * 3.14159265358979f);
 
     /* Copy buffer */
     SetBkColor(hMemDC_, RGB(0xD7, 0xC4, 0xBB));

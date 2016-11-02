@@ -1,16 +1,6 @@
 #pragma once
-#include <windows.h>
+#include "common.h"
 
-/* Define assertion */
-#ifndef Assert
-#if defined( DEBUG ) || defined( _DEBUG )
-#define Assert(b) do {if (!(b)) {OutputDebugStringA("Assert: " #b "\n");}} while(0)
-#else
-#define Assert(b)
-#endif //DEBUG || _DEBUG
-#endif
-
-inline BOOL isAndSetZero(FLOAT &value);
 /* Class Declaration */
 class Vertex3F;
 class Vertex4F;
@@ -35,13 +25,18 @@ public:
     Vertex3F & operator=(const Vertex3F & rhs);//赋值
     BOOL operator==(const Vertex3F & rhs);//相等
     BOOL operator!=(const Vertex3F & rhs);//不相等
+    FLOAT & operator[](const int & index);//获得分量从1开始
     /* Other operation*/
     FLOAT length() const;//向量模
     Vertex3F normalize() const;//归一化
+    FLOAT distance(const Vertex3F & rhs) const;
     FLOAT dotProduct(const Vertex3F & rhs) const;//点乘
     Vertex3F crossProduct(const Vertex3F & rhs) const;//叉乘
     Vertex4F toPoint4F() const;//齐次坐标点
     Vertex4F toVector4F() const;//齐次向量
+
+    /* Some Vertex3F */
+    static Vertex3F zero();
 private:
     Vertex3F & zeroFix();//把接近0.0f的值改成0.0f，本类的成员函数的返回值全可以直接和0.0f比较
     float x_, y_, z_;
@@ -55,6 +50,11 @@ inline FLOAT length(Vertex3F & lhs)
 inline Vertex3F normalize(Vertex3F & lhs)
 {
     return lhs.normalize();
+}
+
+inline FLOAT distance(const Vertex3F & lhs, const Vertex3F & rhs)
+{
+    return lhs.distance(rhs);
 }
 
 inline FLOAT dotProduct(const Vertex3F & lhs, const Vertex3F & rhs)

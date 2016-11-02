@@ -1,16 +1,5 @@
 #include "Vertex.h"
-
 #include <cmath>
-
-inline BOOL isAndSetZero(FLOAT & value)
-{
-    if (abs(value) < 1e-10f)
-    {
-        value = 0.0f;
-        return true;
-    }
-    return false;
-}
 
 /* 3D Point/Vector class BEGIN*/
 Vertex3F Vertex3F::operator+(const Vertex3F & rhs) const
@@ -111,6 +100,19 @@ BOOL Vertex3F::operator!=(const Vertex3F & rhs)
     return !(*this == rhs);
 }
 
+FLOAT & Vertex3F::operator[](const int & index)
+{
+    if (index <= 1)
+    {
+        return this->x_;
+    }
+    if (index == 2)
+    {
+        return this->y_;
+    }
+    return this->z_;
+}
+
 FLOAT Vertex3F::length() const
 {
     FLOAT len = sqrt(this->x_ * this->x_ + this->y_ * this->y_ + this->z_ * this->z_);
@@ -127,6 +129,11 @@ Vertex3F Vertex3F::normalize() const
         tmp /= len;
     }
     return tmp.zeroFix();
+}
+
+FLOAT Vertex3F::distance(const Vertex3F & rhs) const
+{
+    return (*this - rhs).length();
 }
 
 FLOAT Vertex3F::dotProduct(const Vertex3F & rhs) const
@@ -152,6 +159,11 @@ Vertex4F Vertex3F::toPoint4F() const
 Vertex4F Vertex3F::toVector4F() const
 {
     return Vertex4F(this->x_, this->y_, this->z_, 0.0f);
+}
+
+Vertex3F Vertex3F::zero()
+{
+    return Vertex3F();
 }
 
 Vertex3F & Vertex3F::zeroFix()
