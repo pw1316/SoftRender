@@ -1,3 +1,4 @@
+#include "Vertex.h"
 #include "Matrix.h"
 
 int mid(int low, int value, int high)
@@ -107,7 +108,7 @@ Matrix4x4 & Matrix4x4::operator=(const Matrix4x4 & rhs)
     return this->zeroFix();
 }
 
-BOOL Matrix4x4::operator==(const Matrix4x4 & rhs)
+BOOL Matrix4x4::operator==(const Matrix4x4 & rhs) const
 {
     for (int i = 0; i < 16; i++)
     {
@@ -120,18 +121,26 @@ BOOL Matrix4x4::operator==(const Matrix4x4 & rhs)
     return true;
 }
 
-BOOL Matrix4x4::operator!=(const Matrix4x4 & rhs)
+BOOL Matrix4x4::operator!=(const Matrix4x4 & rhs) const
 {
     return !(*this == rhs);
 }
 
-FLOAT & Matrix4x4::operator()(const int & row, const int & col)
+FLOAT Matrix4x4::operator()(const int & row, const int & col) const
 {
     int r = row - 1;
     int c = col - 1;
     r = mid(0, r, 3);
     c = mid(0, c, 3);
     return m_[r * 4 + c];
+}
+
+void Matrix4x4::setIdentity()
+{
+    this->m_[0] = 1.0f; this->m_[1] = 0.0f; this->m_[2] = 0.0f; this->m_[3] = 0.0f;
+    this->m_[4] = 0.0f; this->m_[5] = 1.0f; this->m_[6] = 0.0f; this->m_[7] = 0.0f;
+    this->m_[8] = 0.0f; this->m_[9] = 0.0f; this->m_[10] = 1.0f; this->m_[11] = 0.0f;
+    this->m_[12] = 0.0f; this->m_[13] = 0.0f; this->m_[14] = 0.0f; this->m_[15] = 1.0f;
 }
 
 void Matrix4x4::setTranslate(FLOAT x, FLOAT y, FLOAT z)
@@ -145,11 +154,7 @@ void Matrix4x4::setTranslate(FLOAT x, FLOAT y, FLOAT z)
 
 void Matrix4x4::setTranslate(Vertex3F v)
 {
-    this->m_[0] = 1.0f; this->m_[1] = 0.0f; this->m_[2] = 0.0f; this->m_[3] = 0.0f;
-    this->m_[4] = 0.0f; this->m_[5] = 1.0f; this->m_[6] = 0.0f; this->m_[7] = 0.0f;
-    this->m_[8] = 0.0f; this->m_[9] = 0.0f; this->m_[10] = 1.0f; this->m_[11] = 0.0f;
-    this->m_[12] = v[1]; this->m_[13] = v[2]; this->m_[14] = v[3]; this->m_[15] = 1.0f;
-    this->zeroFix();
+    this->setTranslate(v[1], v[2], v[3]);
 }
 
 void Matrix4x4::setRotate(FLOAT x, FLOAT y, FLOAT z, FLOAT angel)
@@ -160,6 +165,11 @@ void Matrix4x4::setRotate(FLOAT x, FLOAT y, FLOAT z, FLOAT angel)
     this->m_[12] = 0.0f; this->m_[13] = 0.0f; this->m_[14] = 0.0f; this->m_[15] = 1.0f;
     //TODO ¹éÒ»»¯
     this->zeroFix();
+}
+
+void Matrix4x4::setRotate(Vertex3F v, FLOAT angel)
+{
+    this->setRotate(v[1], v[2], v[3], angel);
 }
 
 Matrix4x4 & Matrix4x4::zeroFix()

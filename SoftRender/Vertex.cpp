@@ -1,4 +1,5 @@
 #include "Vertex.h"
+#include "Matrix.h"
 #include <cmath>
 
 /* 3D Point/Vector class BEGIN*/
@@ -161,11 +162,6 @@ Vertex4F Vertex3F::toVector4F() const
     return Vertex4F(this->x_, this->y_, this->z_, 0.0f);
 }
 
-Vertex3F Vertex3F::zero()
-{
-    return Vertex3F();
-}
-
 Vertex3F & Vertex3F::zeroFix()
 {
     isAndSetZero(x_);
@@ -198,6 +194,16 @@ Vertex4F Vertex4F::normalize() const
         tmp.z_ /= tmp.w_;
         tmp.w_ /= tmp.w_;
     }
+    return tmp.zeroFix();
+}
+
+Vertex4F Vertex4F::product(const Matrix4x4 & rhs) const
+{
+    Vertex4F tmp;
+    tmp.x_ = this->x_ * rhs(1, 1) + this->y_ * rhs(2, 1) + this->z_ * rhs(3, 1) + this->w_ * rhs(4, 1);
+    tmp.y_ = this->x_ * rhs(1, 2) + this->y_ * rhs(2, 2) + this->z_ * rhs(3, 2) + this->w_ * rhs(4, 2);
+    tmp.z_ = this->x_ * rhs(1, 3) + this->y_ * rhs(2, 3) + this->z_ * rhs(3, 3) + this->w_ * rhs(4, 3);
+    tmp.w_ = this->x_ * rhs(1, 4) + this->y_ * rhs(2, 4) + this->z_ * rhs(3, 4) + this->w_ * rhs(4, 4);
     return tmp.zeroFix();
 }
 
