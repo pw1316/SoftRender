@@ -2,8 +2,9 @@
 #include "common.h"
 #include "Vertex.h"
 #include "Matrix.h"
+#include "Camera.h"
 
-/* Safe release for COM components */
+/* COM组件的释放 */
 template<class Interface>
 inline void SafeRelease(Interface **ppInterfaceToRelease)
 {
@@ -19,7 +20,7 @@ typedef struct __TriangleIndex {
     int p0, p1, p2;
 } TriangleIndex;
 
-/* Current hInstance */
+/* 当前hInstance */
 #ifndef HINST_THISCOMPONENT
 EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 #define HINST_THISCOMPONENT ((HINSTANCE)&__ImageBase)
@@ -54,11 +55,17 @@ private:
     BITMAPINFO bmpInfo_ = {};
     UINT *bmpBuffer_ = nullptr;
 
+    /* 立方体initDevice里初始化 */
+    /* 顶点缓存 */
     Vertex3F vertexBuffer_[8];
+    /* 索引缓存，右手逆时针法向量 */
     TriangleIndex indexBuffer_[12];
-    /* Transform */
-    Vertex3F posInWorld = Vertex3F(0.0f, 0.0f, 0.0f);
-    FLOAT rotX = 45.0f;
-    FLOAT rotY = 0.0f;
-    FLOAT rotZ = 0.0f;
+    /* 世界变换，yzy欧拉角 p世界 = p刚体 * R(gamma) * R(beta) * R(alpha) */
+    FLOAT rotAlpha_;
+    FLOAT rotBeta_;
+    FLOAT rotGamma_;
+    /* 相机 */
+    Camera camera_;
+    /* 投影 */
+    //暂时不投影，直接投到摄像机坐标系z=0上
 };

@@ -19,8 +19,3 @@ inline BOOL isAndSetZero(FLOAT & value) {
     }
     return false;
 }
-
-class Vertex3F;
-class Vertex4F;
-
-class Matrix4x4;

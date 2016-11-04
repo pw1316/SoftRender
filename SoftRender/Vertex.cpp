@@ -101,7 +101,7 @@ BOOL Vertex3F::operator!=(const Vertex3F & rhs)
     return !(*this == rhs);
 }
 
-FLOAT & Vertex3F::operator[](const int & index)
+FLOAT Vertex3F::operator[](const int & index) const
 {
     if (index <= 1)
     {
@@ -162,6 +162,14 @@ Vertex4F Vertex3F::toVector4F() const
     return Vertex4F(this->x_, this->y_, this->z_, 0.0f);
 }
 
+Vertex3F & Vertex3F::set(FLOAT x, FLOAT y, FLOAT z)
+{
+    this->x_ = x;
+    this->y_ = y;
+    this->z_ = z;
+    return this->zeroFix();
+}
+
 Vertex3F & Vertex3F::zeroFix()
 {
     isAndSetZero(x_);
@@ -182,6 +190,23 @@ Vertex4F & Vertex4F::operator=(const Vertex4F & rhs)
         this->w_ = rhs.w_;
     }
     return this->zeroFix();
+}
+
+FLOAT & Vertex4F::operator[](const int & index)
+{
+    if (index <= 1)
+    {
+        return this->x_;
+    }
+    if (index == 2)
+    {
+        return this->y_;
+    }
+    if (index == 3)
+    {
+        return this->z_;
+    }
+    return this->w_;
 }
 
 Vertex4F Vertex4F::normalize() const

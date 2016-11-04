@@ -92,6 +92,7 @@ HRESULT PWGL::initDevice()
     bmpInfo_.bmiHeader.biClrImportant = 0;
     hBITMAP_ = CreateDIBSection(hMemDC_, &bmpInfo_, DIB_RGB_COLORS, (void**)&bmpBuffer_, NULL, 0);
     
+    /* 顶点缓存 */
     vertexBuffer_[0] = Vertex3F(-0.5f, -0.5f, -0.5f);
     vertexBuffer_[1] = Vertex3F(-0.5f, -0.5f, 0.5f);
     vertexBuffer_[2] = Vertex3F(-0.5f, 0.5f, -0.5f);
@@ -100,7 +101,7 @@ HRESULT PWGL::initDevice()
     vertexBuffer_[5] = Vertex3F(0.5f, -0.5f, 0.5f);
     vertexBuffer_[6] = Vertex3F(0.5f, 0.5f, -0.5f);
     vertexBuffer_[7] = Vertex3F(0.5f, 0.5f, 0.5f);
-
+    /* 索引缓存 */
     indexBuffer_[0] = { 1, 5, 7 };
     indexBuffer_[1] = { 1, 7, 3 };
     indexBuffer_[2] = { 5, 4, 6 };
@@ -113,6 +114,14 @@ HRESULT PWGL::initDevice()
     indexBuffer_[9] = { 3, 6, 2 };
     indexBuffer_[10] = { 0, 4, 5 };
     indexBuffer_[11] = { 0, 5, 1 };
+    /* 世界坐标变换 */
+    rotAlpha_ = 0.0f;
+    rotBeta_ = 0.0f;
+    rotGamma_ = 0.0f;
+    /* 摄像机 */
+    camera_.setPosition(5.0f, 5.0f, 5.0f);
+    camera_.setLookAt(0.0f, 0.0f, 0.0f);
+    camera_.setUp(0.0f, 1.0f, 0.0f);
     return hr;
 }
 
@@ -149,7 +158,25 @@ HRESULT PWGL::onRender()
 
     /*TODO Render*/
     Matrix4x4 transform;
-    transform.setRotate(1.0f, 1.0f, 1.0f, rotX / 180.0f * 3.14159265358979f);
+    transform.setRotate(0.0f, 1.0f, 0.0f, rotGamma_ / 180.0f * 3.1415926536f);
+    transform.addRotate(0.0f, 0.0f, 1.0f, rotBeta_ / 180.0f * 3.1415926536f);
+    transform.addRotate(0.0f, 1.0f, 0.0f, rotAlpha_ / 180.0f * 3.1415926536f);
+    transform *= camera_.matrix();
+    for (int i = 0; i < 12; i++)
+    {
+        /* For each triangle*/
+        Vertex3F p0 = vertexBuffer_[this->indexBuffer_[i].p0];
+        Vertex3F p1 = vertexBuffer_[this->indexBuffer_[i].p1];
+        Vertex3F p2 = vertexBuffer_[this->indexBuffer_[i].p2];
+        /* 变换到观察坐标系 */
+        p0 = p0.toPoint4F().product(transform).toVertex3F();
+        p1 = p1.toPoint4F().product(transform).toVertex3F();
+        p2 = p2.toPoint4F().product(transform).toVertex3F();
+        /* 表面法向量 */
+        Vertex3F norm = crossProduct((p1 - p0), (p2 - p1));
+        /* 删除背面 */
+        if (norm[2] < 0) continue;
+    }
 
     /* Copy buffer */
     SetBkColor(hMemDC_, RGB(0xD7, 0xC4, 0xBB));

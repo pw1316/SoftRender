@@ -1,10 +1,14 @@
 #pragma once
 #include "common.h"
+class Vertex3F;
+class Vertex4F;
+class Matrix4x4;
 
 class Matrix4x4
 {
 public:
     Matrix4x4();
+    Matrix4x4(Vertex4F c1, Vertex4F c2, Vertex4F c3, Vertex4F c4);//用列向量构造
     ~Matrix4x4() {}
     /* 运算符重载 */
     Matrix4x4 operator+(const Matrix4x4 & rhs) const;//矩阵加
@@ -22,12 +26,16 @@ public:
     //TODO 行列式等坑爹运算
 
     /* 一些变换矩阵 */
-    /* set开头的方法是将矩阵修改成指定矩阵，非set开头的方法是在原有基础上增加指定变换 */
+    /* set开头的方法是将矩阵修改成指定矩阵，add开头的方法是在原有基础上增加指定变换 */
     void setIdentity();//单位矩阵
-    void setTranslate(FLOAT x, FLOAT y, FLOAT z);//传向量坐标，朝向量平移
-    void setTranslate(Vertex3F v);//传向量，朝向量平移
-    void setRotate(FLOAT x, FLOAT y, FLOAT z, FLOAT angel);//传向量坐标和角度，绕向量逆时针转
-    void setRotate(Vertex3F v, FLOAT angel);//传向量和角度，绕向量逆时针转
+    void setTranslate(const FLOAT & x, const FLOAT & y, const FLOAT & z);//传向量坐标，朝向量平移
+    void addTranslate(const FLOAT & x, const FLOAT & y, const FLOAT & z);//传向量坐标，朝向量平移
+    void setTranslate(const Vertex3F & v);//传向量，朝向量平移
+    void addTranslate(const Vertex3F & v);//传向量，朝向量平移
+    void setRotate(FLOAT x, FLOAT y, FLOAT z, FLOAT angle);//传向量坐标和角度，绕向量逆时针转
+    void addRotate(FLOAT x, FLOAT y, FLOAT z, FLOAT angle);//传向量坐标和角度，绕向量逆时针转
+    void setRotate(Vertex3F v, FLOAT angle);//传向量和角度，绕向量逆时针转
+    void addRotate(Vertex3F v, FLOAT angle);//传向量和角度，绕向量逆时针转
 private:
     Matrix4x4 & zeroFix();
     FLOAT m_[16];
