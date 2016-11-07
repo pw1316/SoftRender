@@ -164,11 +164,11 @@ HRESULT PWGL::onRender()
     transform *= camera_.matrix();
     for (int i = 0; i < 12; i++)
     {
-        /* For each triangle*/
+        /* 局部坐标系 */
         Vertex3F p0 = vertexBuffer_[this->indexBuffer_[i].p0];
         Vertex3F p1 = vertexBuffer_[this->indexBuffer_[i].p1];
         Vertex3F p2 = vertexBuffer_[this->indexBuffer_[i].p2];
-        /* 变换到观察坐标系 */
+        /* 观察坐标系 */
         p0 = p0.toPoint4F().product(transform).toVertex3F();
         p1 = p1.toPoint4F().product(transform).toVertex3F();
         p2 = p2.toPoint4F().product(transform).toVertex3F();
@@ -176,6 +176,14 @@ HRESULT PWGL::onRender()
         Vertex3F norm = crossProduct((p1 - p0), (p2 - p1));
         /* 删除背面 */
         if (norm[2] < 0) continue;
+        /* 光照 */
+        //TODO
+        /* 裁剪 */
+        //TODO
+        /* 投影 */
+        //TODO
+        /* 光栅化 */
+        //TODO
     }
 
     /* Copy buffer */
