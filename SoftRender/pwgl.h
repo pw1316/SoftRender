@@ -56,6 +56,7 @@ private:
     UINT *bmpBuffer_ = nullptr;
 
     /* 立方体initDevice里初始化 */
+    FLOAT *zBuffer_;
     /* 顶点缓存 */
     Vertex3F vertexBuffer_[8];
     /* 索引缓存，右手逆时针法向量 */
@@ -67,5 +68,13 @@ private:
     /* 相机 */
     Camera camera_;
     /* 投影 */
+    FLOAT fovx_;
+    FLOAT aspect_;
+    FLOAT near_;
+    FLOAT far_;
     //暂时不投影，直接投到摄像机坐标系z=0上
+
+    /* 计算FPS */
+    LARGE_INTEGER frequency_ = {};
+    FLOAT fps_ = 0.0f;
 };

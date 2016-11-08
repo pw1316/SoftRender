@@ -1,5 +1,9 @@
 #include "pwgl.h"
 
+#include <vector>
+
+#define PI 3.1415926535898f
+
 /* Static Menber */
 PWGL *PWGL::instance_ = nullptr;
 LPCSTR PWGL::WINDOW_CLASS_NAME = "PWGL";
@@ -75,6 +79,7 @@ HRESULT PWGL::initWindow()
 HRESULT PWGL::initDevice()
 {
     HRESULT hr = S_OK;
+#pragma region regionBMPBuffer
     hDC_ = GetDC(hWND_);
     hMemDC_ = CreateCompatibleDC(hDC_);
     hBITMAP_ = CreateCompatibleBitmap(hDC_, WINDOW_WIDTH, WINDOW_HEIGHT);
@@ -91,16 +96,20 @@ HRESULT PWGL::initDevice()
     bmpInfo_.bmiHeader.biClrUsed = 0;
     bmpInfo_.bmiHeader.biClrImportant = 0;
     hBITMAP_ = CreateDIBSection(hMemDC_, &bmpInfo_, DIB_RGB_COLORS, (void**)&bmpBuffer_, NULL, 0);
-    
+#pragma endregion
+    zBuffer_ = new FLOAT[WINDOW_WIDTH * WINDOW_HEIGHT];
+#pragma region regionVertexBuffer
     /* 顶点缓存 */
-    vertexBuffer_[0] = Vertex3F(-0.5f, -0.5f, -0.5f);
-    vertexBuffer_[1] = Vertex3F(-0.5f, -0.5f, 0.5f);
-    vertexBuffer_[2] = Vertex3F(-0.5f, 0.5f, -0.5f);
-    vertexBuffer_[3] = Vertex3F(-0.5f, 0.5f, 0.5f);
-    vertexBuffer_[4] = Vertex3F(0.5f, -0.5f, -0.5f);
-    vertexBuffer_[5] = Vertex3F(0.5f, -0.5f, 0.5f);
-    vertexBuffer_[6] = Vertex3F(0.5f, 0.5f, -0.5f);
-    vertexBuffer_[7] = Vertex3F(0.5f, 0.5f, 0.5f);
+    vertexBuffer_[0] = Vertex3F(-0.5f, -0.5f, -0.5f);//左下后
+    vertexBuffer_[1] = Vertex3F(-0.5f, -0.5f, 0.5f);//左下前
+    vertexBuffer_[2] = Vertex3F(-0.5f, 0.5f, -0.5f);//左上后
+    vertexBuffer_[3] = Vertex3F(-0.5f, 0.5f, 0.5f);//左上前
+    vertexBuffer_[4] = Vertex3F(0.5f, -0.5f, -0.5f);//右下后
+    vertexBuffer_[5] = Vertex3F(0.5f, -0.5f, 0.5f);//右下前
+    vertexBuffer_[6] = Vertex3F(0.5f, 0.5f, -0.5f);//右上后
+    vertexBuffer_[7] = Vertex3F(0.5f, 0.5f, 0.5f);//右上前
+#pragma endregion
+#pragma region regionIndexBuffer
     /* 索引缓存 */
     indexBuffer_[0] = { 1, 5, 7 };
     indexBuffer_[1] = { 1, 7, 3 };
@@ -114,14 +123,23 @@ HRESULT PWGL::initDevice()
     indexBuffer_[9] = { 3, 6, 2 };
     indexBuffer_[10] = { 0, 4, 5 };
     indexBuffer_[11] = { 0, 5, 1 };
+#pragma endregion
     /* 世界坐标变换 */
     rotAlpha_ = 0.0f;
     rotBeta_ = 0.0f;
     rotGamma_ = 0.0f;
     /* 摄像机 */
-    camera_.setPosition(5.0f, 5.0f, 5.0f);
+    camera_.setPosition(0.0f, 8.0f, 8.0f);
     camera_.setLookAt(0.0f, 0.0f, 0.0f);
     camera_.setUp(0.0f, 1.0f, 0.0f);
+    /* 投影 */
+    fovx_ = 60.0f;
+    aspect_ = 1.0f * WINDOW_WIDTH / WINDOW_HEIGHT;
+    near_ = 1.0f;
+    far_ = 10.0f;
+
+    /* 计算FPS */
+    QueryPerformanceFrequency(&frequency_);
     return hr;
 }
 
@@ -150,17 +168,21 @@ PWGL::~PWGL()
 
 HRESULT PWGL::onRender()
 {
+    LARGE_INTEGER startTick = {};
+    LARGE_INTEGER endTick = {};
+    QueryPerformanceCounter(&startTick);
     /* Reset*/
     for (int i = 0; i < WINDOW_WIDTH * WINDOW_HEIGHT; i++)
     {
         bmpBuffer_[i] = 0x00D7C4BB;
+        zBuffer_[i] = 0.0f;
     }
 
     /*TODO Render*/
     Matrix4x4 transform;
-    transform.setRotate(0.0f, 1.0f, 0.0f, rotGamma_ / 180.0f * 3.1415926536f);
-    transform.addRotate(0.0f, 0.0f, 1.0f, rotBeta_ / 180.0f * 3.1415926536f);
-    transform.addRotate(0.0f, 1.0f, 0.0f, rotAlpha_ / 180.0f * 3.1415926536f);
+    transform.setRotate(0.0f, 1.0f, 0.0f, rotGamma_ / 180.0f * PI);
+    transform.addRotate(0.0f, 0.0f, 1.0f, rotBeta_ / 180.0f * PI);
+    transform.addRotate(0.0f, 1.0f, 0.0f, rotAlpha_ / 180.0f * PI);
     transform *= camera_.matrix();
     for (int i = 0; i < 12; i++)
     {
@@ -175,23 +197,121 @@ HRESULT PWGL::onRender()
         /* 表面法向量 */
         Vertex3F norm = crossProduct((p1 - p0), (p2 - p1));
         /* 删除背面 */
-        if (norm[2] < 0) continue;
+        if (norm[3] <= 0) continue;
         /* 光照 */
         //TODO
-        /* 裁剪 */
-        //TODO
-        /* 投影 */
+        /* 裁剪，投影 */
+        Matrix4x4 projection(
+            Vertex4F(1.0f * WINDOW_WIDTH / tan(fovx_ / 180.0f * PI / 2.0f) / 2.0f, 0.0f, 1.0f * WINDOW_WIDTH / 2.0f, 0.0f),
+            Vertex4F(0.0f, 1.0f * WINDOW_HEIGHT * aspect_ / tan(fovx_ / 180.0f * PI / 2.0f) / 2.0f, 1.0f * WINDOW_WIDTH / 2.0f, 0.0f),
+            Vertex4F(0.0f, 0.0f, far_ / (far_ - near_), near_ * far_ / (far_ - near_)),
+            Vertex4F(0.0f, 0.0f, -1.0f, 0.0f)
+        );
+        std::vector<Vertex3F> pointList;
+        std::vector<Vertex3F>::iterator itPointList;
+        Vertex3F proj0 = p0.toPoint4F().product(projection).normalize().toVertex3F();
+        Vertex3F proj1 = p1.toPoint4F().product(projection).normalize().toVertex3F();
+        Vertex3F proj2 = p2.toPoint4F().product(projection).normalize().toVertex3F();
+        pointList.push_back(proj0);
+        pointList.push_back(proj1);
+        pointList.push_back(proj2);
+        pointList.push_back(proj0);
+        itPointList = pointList.begin();
+        while (itPointList != pointList.end())
+        {
+            if (itPointList + 1 == pointList.end())
+            {
+                itPointList = pointList.erase(itPointList);
+                break;
+            }
+            Vertex3F startP = *itPointList;
+            Vertex3F endP = *(itPointList + 1);
+            if (startP[3] > 0.0f)
+            {
+                itPointList = pointList.erase(itPointList);
+                if (endP[3] > 0.0f)
+                {
+                }
+                else if(endP[3] < -1.0f)
+                {
+                    FLOAT t = (startP[3] + 1.0f) / (startP[3] - endP[3]);
+                    itPointList = pointList.insert(itPointList, startP + (endP - startP) * t);
+                    t = (startP[3] - 0.0f) / (startP[3] - endP[3]);
+                    itPointList = pointList.insert(itPointList, startP + (endP - startP) * t);
+                    itPointList += 2;
+                }
+                else
+                {
+                    FLOAT t = (startP[3] - 0.0f) / (startP[3] - endP[3]);
+                    itPointList = pointList.insert(itPointList, startP + (endP - startP) * t);
+                    itPointList++;
+                }
+            }
+            else if (startP[3] < -1.0f)
+            {
+                itPointList = pointList.erase(itPointList);
+                if (endP[3] > 0.0f)
+                {
+                    FLOAT t = (startP[3] - 0.0f) / (startP[3] - endP[3]);
+                    itPointList = pointList.insert(itPointList, startP + (endP - startP) * t);
+                    t = (startP[3] + 1.0f) / (startP[3] - endP[3]);
+                    itPointList = pointList.insert(itPointList, startP + (endP - startP) * t);
+                    itPointList += 2;
+                }
+                else if (endP[3] < -1.0f)
+                {
+                }
+                else
+                {
+                    FLOAT t = (startP[3] + 1.0f) / (startP[3] - endP[3]);
+                    itPointList = pointList.insert(itPointList, startP + (endP - startP) * t);
+                    itPointList++;
+                }
+            }
+            else {
+                itPointList++;
+                if (endP[3] > 0.0f)
+                {
+                    FLOAT t = (startP[3] - 0.0f) / (startP[3] - endP[3]);
+                    itPointList = pointList.insert(itPointList, startP + (endP - startP) * t);
+                    itPointList++;
+                }
+                else if (endP[3] < -1.0f)
+                {
+                    FLOAT t = (startP[3] + 1.0f) / (startP[3] - endP[3]);
+                    itPointList = pointList.insert(itPointList, startP + (endP - startP) * t);
+                    itPointList++;
+                }
+            }
+        }
+        if (pointList.size() < 3) continue;
         //TODO
         /* 光栅化 */
+        /* 裁剪后的每个三角形 */
+        for (int i = 1; i < pointList.size() - 1; i++)
+        {
+            Vertex3F tmp0 = pointList[0];
+            Vertex3F tmp1 = pointList[i];
+            Vertex3F tmp2 = pointList[i + 1];
+
+        }
         //TODO
     }
 
     /* Copy buffer */
+    CHAR fpsBuffer[256];
+    sprintf_s(fpsBuffer, 256, "FPS: %.1f", fps_);
     SetBkColor(hMemDC_, RGB(0xD7, 0xC4, 0xBB));
     SetTextColor(hMemDC_, RGB(0xD0, 0x10, 0x4C));
-    TextOut(hMemDC_, 0, 0, "FPS:", 4);
+    TextOut(hMemDC_, 0, 0, fpsBuffer, lstrlen(fpsBuffer));
     SelectObject(hMemDC_, hBITMAP_);
     BitBlt(hDC_, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, hMemDC_, 0, 0, SRCCOPY);
+    
+    /* 计算FPS */
+    QueryPerformanceCounter(&endTick);
+    LARGE_INTEGER delta;
+    delta.QuadPart = endTick.QuadPart - startTick.QuadPart;
+    fps_ = 1.0f * frequency_.QuadPart / delta.QuadPart;
     return S_OK;
 }
 
