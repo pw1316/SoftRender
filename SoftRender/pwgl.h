@@ -63,10 +63,16 @@ private:
     TriangleIndex indexBuffer_[12];
     /* 世界变换，yzy欧拉角 p世界 = p刚体 * R(gamma) * R(beta) * R(alpha) */
     FLOAT rotAlpha_;
+    FLOAT rotAlphaV_;
     FLOAT rotBeta_;
+    FLOAT rotBetaV_;
     FLOAT rotGamma_;
+    FLOAT rotGammaV_;
     /* 相机 */
     Camera camera_;
+    Vertex3F camEye_;
+    Vertex3F camAt_;
+    Vertex3F camUp_;
     /* 投影 */
     FLOAT fovx_;
     FLOAT aspect_;

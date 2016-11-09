@@ -126,12 +126,15 @@ HRESULT PWGL::initDevice()
 #pragma endregion
     /* 世界坐标变换 */
     rotAlpha_ = 0.0f;
+    rotAlphaV_ = 0.0f;
     rotBeta_ = 0.0f;
+    rotBetaV_ = 0.0f;
     rotGamma_ = 0.0f;
+    rotGammaV_ = 0.0f;
     /* 摄像机 */
-    camera_.setPosition(0.0f, 8.0f, 8.0f);
-    camera_.setLookAt(0.0f, 0.0f, 0.0f);
-    camera_.setUp(0.0f, 1.0f, 0.0f);
+    camEye_ = Vertex3F(5.0f, 0.0f, 5.0f);
+    camAt_ = Vertex3F(0.0f, 0.0f, 0.0f);
+    camUp_ = Vertex3F(0.0f, 1.0f, 0.0f);
     /* 投影 */
     fovx_ = 60.0f;
     aspect_ = 1.0f * WINDOW_WIDTH / WINDOW_HEIGHT;
@@ -183,6 +186,12 @@ HRESULT PWGL::onRender()
     transform.setRotate(0.0f, 1.0f, 0.0f, rotGamma_ / 180.0f * PI);
     transform.addRotate(0.0f, 0.0f, 1.0f, rotBeta_ / 180.0f * PI);
     transform.addRotate(0.0f, 1.0f, 0.0f, rotAlpha_ / 180.0f * PI);
+    rotAlpha_ += rotAlphaV_;
+    rotBeta_ += rotBetaV_;
+    rotGamma_ += rotGammaV_;
+    camera_.setPosition(camEye_);
+    camera_.setLookAt(camAt_);
+    camera_.setUp(camUp_);
     transform *= camera_.matrix();
     for (int i = 0; i < 12; i++)
     {
@@ -202,8 +211,8 @@ HRESULT PWGL::onRender()
         //TODO
         /* 裁剪，投影 */
         Matrix4x4 projection(
-            Vertex4F(1.0f * WINDOW_WIDTH / tan(fovx_ / 180.0f * PI / 2.0f) / 2.0f, 0.0f, 1.0f * WINDOW_WIDTH / 2.0f, 0.0f),
-            Vertex4F(0.0f, 1.0f * WINDOW_HEIGHT * aspect_ / tan(fovx_ / 180.0f * PI / 2.0f) / 2.0f, 1.0f * WINDOW_WIDTH / 2.0f, 0.0f),
+            Vertex4F(1.0f * WINDOW_WIDTH / tan(fovx_ / 180.0f * PI / 2.0f) / 2.0f, 0.0f, -1.0f * WINDOW_WIDTH / 2.0f, 0.0f),
+            Vertex4F(0.0f, 1.0f * WINDOW_HEIGHT * aspect_ / tan(fovx_ / 180.0f * PI / 2.0f) / 2.0f, -1.0f * WINDOW_HEIGHT / 2.0f, 0.0f),
             Vertex4F(0.0f, 0.0f, far_ / (far_ - near_), near_ * far_ / (far_ - near_)),
             Vertex4F(0.0f, 0.0f, -1.0f, 0.0f)
         );
@@ -293,7 +302,65 @@ HRESULT PWGL::onRender()
             Vertex3F tmp0 = pointList[0];
             Vertex3F tmp1 = pointList[i];
             Vertex3F tmp2 = pointList[i + 1];
-
+            FLOAT yMax = max(max(tmp0[2], tmp1[2]), tmp2[2]);
+            FLOAT yMin = min(min(tmp0[2], tmp1[2]), tmp2[2]);
+            INT iyMax = static_cast<INT>(yMax);
+            INT iyMin = static_cast<INT>(yMin);
+            FLOAT delta = yMin - static_cast<FLOAT>(iyMin);
+            if (!isAndSetZero(delta))
+            {
+                iyMin++;
+            }
+            iyMin = max(0, iyMin);
+            iyMax = min(WINDOW_HEIGHT - 1, iyMax);
+            /* 扫描每一行 */
+            for (INT i = iyMax; i >= iyMin; i--)
+            {
+                FLOAT xMin = static_cast<FLOAT>(WINDOW_WIDTH - 1);
+                FLOAT xMax = 0.0f;
+                /* 忽略水平线 */
+                if (tmp0[2] != tmp1[2])
+                {
+                    if ((tmp0[2] - i) * (tmp1[2] - i) < 0.0f)
+                    {
+                        FLOAT tmpx = (tmp0[1] - tmp1[1]) / (tmp0[2] - tmp1[2]) * (i - tmp0[2]) + tmp0[1];
+                        if (tmpx > xMax) xMax = tmpx;
+                        if (tmpx < xMin) xMin = tmpx;
+                    }
+                }
+                if (tmp0[2] != tmp2[2])
+                {
+                    if ((tmp0[2] - i) * (tmp2[2] - i) < 0.0f)
+                    {
+                        FLOAT tmpx = (tmp0[1] - tmp2[1]) / (tmp0[2] - tmp2[2]) * (i - tmp0[2]) + tmp0[1];
+                        if (tmpx > xMax) xMax = tmpx;
+                        if (tmpx < xMin) xMin = tmpx;
+                    }
+                }
+                if (tmp2[2] != tmp1[2])
+                {
+                    if ((tmp1[2] - i) * (tmp2[2] - i) < 0.0f)
+                    {
+                        FLOAT tmpx = (tmp2[1] - tmp1[1]) / (tmp2[2] - tmp1[2]) * (i - tmp2[2]) + tmp2[1];
+                        if (tmpx > xMax) xMax = tmpx;
+                        if (tmpx < xMin) xMin = tmpx;
+                    }
+                }
+                INT ixMin = static_cast<INT>(xMin);
+                INT ixMax = static_cast<INT>(xMax);
+                ixMin = max(0, ixMin);
+                ixMax = min(WINDOW_WIDTH - 1, ixMax);
+                for (INT j = ixMin; j <= ixMax; j++)
+                {
+                    Vertex3F lerp0(tmp0[1], tmp0[2], tmp0[3]);
+                    Vertex3F lerp1(tmp1[1], tmp1[2], tmp1[3]);
+                    Vertex3F lerp2(tmp2[1], tmp2[2], tmp2[3]);
+                    Vertex3F lerpNorm = (lerp1 - lerp0).crossProduct(lerp2 - lerp1);
+                    FLOAT depth = lerp0[3] - ((j - lerp0[1]) * lerpNorm[1] + (i - lerp0[2]) * lerpNorm[2]) / lerpNorm[3];
+                    if (zBuffer_[i * WINDOW_WIDTH + j] > -depth) continue;
+                    bmpBuffer_[i * WINDOW_WIDTH + j] = 0x00FF0000;
+                }
+            }
         }
         //TODO
     }
@@ -349,6 +416,55 @@ LRESULT PWGL::wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 PostQuitMessage(0);
             }
             result = 1;
+            wasHandled = true;
+            break;
+
+            case WM_MOUSEWHEEL:
+            {
+                LONG zDelta = GET_WHEEL_DELTA_WPARAM(wParam) / 120;
+                ppwgl->camEye_ = Vertex3F(ppwgl->camEye_[1], ppwgl->camEye_[2], ppwgl->camEye_[3] + zDelta);
+            }
+            result = 0;
+            wasHandled = true;
+            break;
+
+            case WM_KEYDOWN:
+            {
+                switch (wParam)
+                {
+                case VK_LEFT:
+                    ppwgl->rotAlphaV_ = -1.0f;
+                    break;
+                case VK_RIGHT:
+                    ppwgl->rotAlphaV_ = 1.0f;
+                    break;
+                case VK_UP:
+                    ppwgl->rotBetaV_ = -1.0f;
+                    break;
+                case VK_DOWN:
+                    ppwgl->rotBetaV_ = 1.0f;
+                    break;
+                }
+            }
+            result = 0;
+            wasHandled = true;
+            break;
+
+            case WM_KEYUP:
+            {
+                switch (wParam)
+                {
+                case VK_LEFT:
+                case VK_RIGHT:
+                    ppwgl->rotAlphaV_ = 0.0f;
+                    break;
+                case VK_UP:
+                case VK_DOWN:
+                    ppwgl->rotBetaV_ = 0.0f;
+                    break;
+                }
+            }
+            result = 0;
             wasHandled = true;
             break;
             }
