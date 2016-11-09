@@ -186,9 +186,9 @@ HRESULT PWGL::onRender()
     transform.setRotate(0.0f, 1.0f, 0.0f, rotGamma_ / 180.0f * PI);
     transform.addRotate(0.0f, 0.0f, 1.0f, rotBeta_ / 180.0f * PI);
     transform.addRotate(0.0f, 1.0f, 0.0f, rotAlpha_ / 180.0f * PI);
-    rotAlpha_ += rotAlphaV_;
-    rotBeta_ += rotBetaV_;
-    rotGamma_ += rotGammaV_;
+    rotAlpha_ += rotAlphaV_ * 60.f / fps_;
+    rotBeta_ += rotBetaV_ * 60.f / fps_;
+    rotGamma_ += rotGammaV_ * 60.f / fps_;
     camera_.setPosition(camEye_);
     camera_.setLookAt(camAt_);
     camera_.setUp(camUp_);
@@ -422,7 +422,7 @@ LRESULT PWGL::wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             case WM_MOUSEWHEEL:
             {
                 LONG zDelta = GET_WHEEL_DELTA_WPARAM(wParam) / 120;
-                ppwgl->camEye_ = Vertex3F(ppwgl->camEye_[1], ppwgl->camEye_[2], ppwgl->camEye_[3] + zDelta);
+                ppwgl->camEye_ += (ppwgl->camAt_ - ppwgl->camEye_).normalize() * zDelta;
             }
             result = 0;
             wasHandled = true;

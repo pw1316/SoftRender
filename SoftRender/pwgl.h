@@ -82,5 +82,5 @@ private:
 
     /* º∆À„FPS */
     LARGE_INTEGER frequency_ = {};
-    FLOAT fps_ = 0.0f;
+    FLOAT fps_ = 60.0f;
 };
