@@ -70,15 +70,17 @@ private:
     FLOAT rotGammaV_;
     /* 相机 */
     Camera camera_;
-    Vertex3F camEye_;
-    Vertex3F camAt_;
-    Vertex3F camUp_;
     /* 投影 */
     FLOAT fovx_;
     FLOAT aspect_;
     FLOAT near_;
     FLOAT far_;
-    //暂时不投影，直接投到摄像机坐标系z=0上
+    /* 光源 */
+    Vertex3F lightPos;//点光源位置(世界坐标)
+    Vertex3F lightDiffuse_;//漫反射光颜色(R, G, B)
+    Vertex3F lightSpecular_;//镜面反射光颜色(R, G, B)
+    Vertex3F lightAmbient;//环境光颜色(R, G, B)
+    FLOAT range_;//最大光程
 
     /* 计算FPS */
     LARGE_INTEGER frequency_ = {};

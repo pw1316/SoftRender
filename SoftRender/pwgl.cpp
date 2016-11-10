@@ -132,14 +132,21 @@ HRESULT PWGL::initDevice()
     rotGamma_ = 0.0f;
     rotGammaV_ = 0.0f;
     /* 摄像机 */
-    camEye_ = Vertex3F(5.0f, 0.0f, 5.0f);
-    camAt_ = Vertex3F(0.0f, 0.0f, 0.0f);
-    camUp_ = Vertex3F(0.0f, 1.0f, 0.0f);
+    Vertex3F camEye(0.0f, 0.0f, 5.0f);
+    Vertex3F camAt(0.0f, 0.0f, 0.0f);
+    Vertex3F camUp(0.0f, 1.0f, 0.0f);
+    camera_ = Camera(camEye, camAt, camUp);
     /* 投影 */
     fovx_ = 60.0f;
     aspect_ = 1.0f * WINDOW_WIDTH / WINDOW_HEIGHT;
     near_ = 1.0f;
     far_ = 10.0f;
+    /* 光源 */
+    lightPos.set(0.0f, 0.0f, 5.0f);//点光源位置(世界坐标)
+    lightDiffuse_.set(0.4f, 0.4f, 0.4f);//漫反射光颜色(R, G, B)
+    lightSpecular_.set(0.4f, 0.4f, 0.4f);//镜面反射光颜色(R, G, B)
+    lightAmbient.set(0.2f, 0.2f, 0.2f);//环境光颜色(R, G, B)
+    range_ = 100.0f;//最大光程
 
     /* 计算FPS */
     QueryPerformanceFrequency(&frequency_);
@@ -189,10 +196,12 @@ HRESULT PWGL::onRender()
     rotAlpha_ += rotAlphaV_ * 60.f / fps_;
     rotBeta_ += rotBetaV_ * 60.f / fps_;
     rotGamma_ += rotGammaV_ * 60.f / fps_;
-    camera_.setPosition(camEye_);
-    camera_.setLookAt(camAt_);
-    camera_.setUp(camUp_);
     transform *= camera_.matrix();
+    Vertex3F lightInView = lightPos.toPoint4F().product(camera_.matrix()).toVertex3F();
+    /* p0, p1, p2 面顶点的观察坐标 */
+    /* proj0, proj1, proj2 面顶点的屏幕坐标 */
+    /* tmp0, tmp1, tmp2 裁剪面顶点的屏幕坐标 */
+    /* (j, i) 插值点的屏幕坐标 */
     for (int i = 0; i < 12; i++)
     {
         /* 局部坐标系 */
@@ -205,8 +214,6 @@ HRESULT PWGL::onRender()
         p2 = p2.toPoint4F().product(transform).toVertex3F();
         /* 表面法向量 */
         Vertex3F norm = crossProduct((p1 - p0), (p2 - p1));
-        /* 删除背面 */
-        if (norm[3] <= 0) continue;
         /* 光照 */
         //TODO
         /* 裁剪，投影 */
@@ -221,6 +228,8 @@ HRESULT PWGL::onRender()
         Vertex3F proj0 = p0.toPoint4F().product(projection).normalize().toVertex3F();
         Vertex3F proj1 = p1.toPoint4F().product(projection).normalize().toVertex3F();
         Vertex3F proj2 = p2.toPoint4F().product(projection).normalize().toVertex3F();
+        Vertex3F projNorm = crossProduct((proj1 - proj0), (proj2 - proj1));
+        if (projNorm[3] < 0.0f) continue;
         pointList.push_back(proj0);
         pointList.push_back(proj1);
         pointList.push_back(proj2);
@@ -297,11 +306,11 @@ HRESULT PWGL::onRender()
         //TODO
         /* 光栅化 */
         /* 裁剪后的每个三角形 */
-        for (int i = 1; i < pointList.size() - 1; i++)
+        for (int k = 1; k < pointList.size() - 1; k++)
         {
             Vertex3F tmp0 = pointList[0];
-            Vertex3F tmp1 = pointList[i];
-            Vertex3F tmp2 = pointList[i + 1];
+            Vertex3F tmp1 = pointList[k];
+            Vertex3F tmp2 = pointList[k + 1];
             FLOAT yMax = max(max(tmp0[2], tmp1[2]), tmp2[2]);
             FLOAT yMin = min(min(tmp0[2], tmp1[2]), tmp2[2]);
             INT iyMax = static_cast<INT>(yMax);
@@ -314,34 +323,34 @@ HRESULT PWGL::onRender()
             iyMin = max(0, iyMin);
             iyMax = min(WINDOW_HEIGHT - 1, iyMax);
             /* 扫描每一行 */
-            for (INT i = iyMax; i >= iyMin; i--)
+            for (INT row = iyMax; row >= iyMin; row--)
             {
                 FLOAT xMin = static_cast<FLOAT>(WINDOW_WIDTH - 1);
                 FLOAT xMax = 0.0f;
                 /* 忽略水平线 */
                 if (tmp0[2] != tmp1[2])
                 {
-                    if ((tmp0[2] - i) * (tmp1[2] - i) < 0.0f)
+                    if ((tmp0[2] - row) * (tmp1[2] - row) < 0.0f)
                     {
-                        FLOAT tmpx = (tmp0[1] - tmp1[1]) / (tmp0[2] - tmp1[2]) * (i - tmp0[2]) + tmp0[1];
+                        FLOAT tmpx = (tmp0[1] - tmp1[1]) / (tmp0[2] - tmp1[2]) * (row - tmp0[2]) + tmp0[1];
                         if (tmpx > xMax) xMax = tmpx;
                         if (tmpx < xMin) xMin = tmpx;
                     }
                 }
                 if (tmp0[2] != tmp2[2])
                 {
-                    if ((tmp0[2] - i) * (tmp2[2] - i) < 0.0f)
+                    if ((tmp0[2] - row) * (tmp2[2] - row) < 0.0f)
                     {
-                        FLOAT tmpx = (tmp0[1] - tmp2[1]) / (tmp0[2] - tmp2[2]) * (i - tmp0[2]) + tmp0[1];
+                        FLOAT tmpx = (tmp0[1] - tmp2[1]) / (tmp0[2] - tmp2[2]) * (row - tmp0[2]) + tmp0[1];
                         if (tmpx > xMax) xMax = tmpx;
                         if (tmpx < xMin) xMin = tmpx;
                     }
                 }
                 if (tmp2[2] != tmp1[2])
                 {
-                    if ((tmp1[2] - i) * (tmp2[2] - i) < 0.0f)
+                    if ((tmp1[2] - row) * (tmp2[2] - row) < 0.0f)
                     {
-                        FLOAT tmpx = (tmp2[1] - tmp1[1]) / (tmp2[2] - tmp1[2]) * (i - tmp2[2]) + tmp2[1];
+                        FLOAT tmpx = (tmp2[1] - tmp1[1]) / (tmp2[2] - tmp1[2]) * (row - tmp2[2]) + tmp2[1];
                         if (tmpx > xMax) xMax = tmpx;
                         if (tmpx < xMin) xMin = tmpx;
                     }
@@ -350,15 +359,29 @@ HRESULT PWGL::onRender()
                 INT ixMax = static_cast<INT>(xMax);
                 ixMin = max(0, ixMin);
                 ixMax = min(WINDOW_WIDTH - 1, ixMax);
-                for (INT j = ixMin; j <= ixMax; j++)
+                for (INT col = ixMin; col <= ixMax; col++)
                 {
-                    Vertex3F lerp0(tmp0[1], tmp0[2], tmp0[3]);
-                    Vertex3F lerp1(tmp1[1], tmp1[2], tmp1[3]);
-                    Vertex3F lerp2(tmp2[1], tmp2[2], tmp2[3]);
-                    Vertex3F lerpNorm = (lerp1 - lerp0).crossProduct(lerp2 - lerp1);
-                    FLOAT depth = lerp0[3] - ((j - lerp0[1]) * lerpNorm[1] + (i - lerp0[2]) * lerpNorm[2]) / lerpNorm[3];
-                    if (zBuffer_[i * WINDOW_WIDTH + j] > -depth) continue;
-                    bmpBuffer_[i * WINDOW_WIDTH + j] = 0x00FF0000;
+                    FLOAT v0 = (col - proj2[1]) * (proj1[2] - proj2[2]) + (row - proj2[2]) * (proj2[1] - proj1[1]);
+                    v0 /= (proj0[1] - proj2[1]) * (proj1[2] - proj2[2]) + (proj0[2] - proj2[2]) * (proj2[1] - proj1[1]);
+                    FLOAT v1 = (col - proj0[1]) * (proj2[2] - proj0[2]) + (row - proj0[2]) * (proj0[1] - proj2[1]);
+                    v1 /= (proj1[1] - proj0[1]) * (proj2[2] - proj0[2]) + (proj1[2] - proj0[2]) * (proj0[1] - proj2[1]);
+                    FLOAT v2 = (col - proj1[1]) * (proj0[2] - proj1[2]) + (row - proj1[2]) * (proj1[1] - proj0[1]);
+                    v2 /= (proj2[1] - proj1[1]) * (proj0[2] - proj1[2]) + (proj2[2] - proj1[2]) * (proj1[1] - proj0[1]);
+                    FLOAT depth = v0 * proj0[3] + v1 * proj1[3] + v2 * proj2[3];
+                    if (zBuffer_[row * WINDOW_WIDTH + col] > -depth) continue;
+                    zBuffer_[row * WINDOW_WIDTH + col] = -depth;
+                    Vertex3F jiInView = p0 * v0 + p1 * v1 + p2 * v2;
+                    UINT color = 0x00FF0000;
+                    /* 光照 */
+                    Vertex3F l = (lightInView - jiInView).normalize();
+                    Vertex3F r = norm * 2.0f * l.dotProduct(norm) - l;
+                    Vertex3F v = -jiInView.normalize();
+                    FLOAT vDiff = max(norm.dotProduct(l), 0.0f);
+                    FLOAT vSpec = max(v.dotProduct(r) * v.dotProduct(r) * v.dotProduct(r) * v.dotProduct(r), 0.0f);
+                    FLOAT vAmb = 1.0f;
+                    color = 255 * (vDiff * lightDiffuse_[1] + vSpec * lightSpecular_[1] + vAmb * lightAmbient[1]);
+                    color <<= 16;
+                    bmpBuffer_[row * WINDOW_WIDTH + col] = color;
                 }
             }
         }
@@ -422,7 +445,7 @@ LRESULT PWGL::wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             case WM_MOUSEWHEEL:
             {
                 LONG zDelta = GET_WHEEL_DELTA_WPARAM(wParam) / 120;
-                ppwgl->camEye_ += (ppwgl->camAt_ - ppwgl->camEye_).normalize() * zDelta;
+                ppwgl->camera_.moveForward(zDelta);
             }
             result = 0;
             wasHandled = true;

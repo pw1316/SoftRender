@@ -10,14 +10,14 @@ class Camera
 {
 public:
     Camera();
+    Camera(const Vertex3F & eye, const Vertex3F & at, const Vertex3F & up);
     ~Camera() {}
-    void setPosition(const FLOAT & x, const FLOAT & y, const FLOAT & z);
-    void setPosition(const Vertex3F & v);
-    BOOL setLookAt(const FLOAT & x, const FLOAT & y, const FLOAT & z);
-    BOOL setLookAt(const Vertex3F & v);
-    BOOL setUp(const FLOAT & x, const FLOAT & y, const FLOAT & z);
-    BOOL setUp(const Vertex3F & v);
+    /* 计算变换矩阵 */
     Matrix4x4 matrix();
+    /* 摄像机移动 */
+    void moveForward(FLOAT dist);
+    /* 读变量 */
+    Vertex3F getEye() { return eye_; }
 private:
     Vertex3F eye_;
     Vertex3F forward_;
