@@ -132,7 +132,7 @@ HRESULT PWGL::initDevice()
     rotGamma_ = 0.0f;
     rotGammaV_ = 0.0f;
     /* 摄像机 */
-    Vertex3F camEye(0.0f, 0.0f, 5.0f);
+    Vertex3F camEye(0.0f, 0.0f, 2.0f);
     Vertex3F camAt(0.0f, 0.0f, 0.0f);
     Vertex3F camUp(0.0f, 1.0f, 0.0f);
     camera_ = Camera(camEye, camAt, camUp);
@@ -140,7 +140,7 @@ HRESULT PWGL::initDevice()
     fovx_ = 60.0f;
     aspect_ = 1.0f * WINDOW_WIDTH / WINDOW_HEIGHT;
     near_ = 1.0f;
-    far_ = 10.0f;
+    far_ = 100.0f;
     /* 光源 */
     lightPos.set(0.0f, 0.0f, 5.0f);//点光源位置(世界坐标)
     lightDiffuse_.set(0.4f, 0.4f, 0.4f);//漫反射光颜色(R, G, B)
@@ -200,22 +200,20 @@ HRESULT PWGL::onRender()
     Vertex3F lightInView = lightPos.toPoint4F().product(camera_.matrix()).toVertex3F();
     /* p0, p1, p2 面顶点的观察坐标 */
     /* proj0, proj1, proj2 面顶点的屏幕坐标 */
-    /* tmp0, tmp1, tmp2 裁剪面顶点的屏幕坐标 */
+    /* pointList 裁剪面顶点的屏幕坐标 */
     /* (j, i) 插值点的屏幕坐标 */
-    for (int i = 0; i < 12; i++)
+    for (int face = 0; face < 12; face++)
     {
         /* 局部坐标系 */
-        Vertex3F p0 = vertexBuffer_[this->indexBuffer_[i].p0];
-        Vertex3F p1 = vertexBuffer_[this->indexBuffer_[i].p1];
-        Vertex3F p2 = vertexBuffer_[this->indexBuffer_[i].p2];
+        Vertex3F p[3];
+        p[0] = vertexBuffer_[this->indexBuffer_[face].p0];
+        p[1] = vertexBuffer_[this->indexBuffer_[face].p1];
+        p[2] = vertexBuffer_[this->indexBuffer_[face].p2];
         /* 观察坐标系 */
-        p0 = p0.toPoint4F().product(transform).toVertex3F();
-        p1 = p1.toPoint4F().product(transform).toVertex3F();
-        p2 = p2.toPoint4F().product(transform).toVertex3F();
-        /* 表面法向量 */
-        Vertex3F norm = crossProduct((p1 - p0), (p2 - p1));
-        /* 光照 */
-        //TODO
+        p[0] = p[0].toPoint4F().product(transform).toVertex3F();
+        p[1] = p[1].toPoint4F().product(transform).toVertex3F();
+        p[2] = p[2].toPoint4F().product(transform).toVertex3F();
+        Vertex3F norm = crossProduct((p[1] - p[0]), (p[2] - p[1]));
         /* 裁剪，投影 */
         Matrix4x4 projection(
             Vertex4F(1.0f * WINDOW_WIDTH / tan(fovx_ / 180.0f * PI / 2.0f) / 2.0f, 0.0f, -1.0f * WINDOW_WIDTH / 2.0f, 0.0f),
@@ -223,96 +221,76 @@ HRESULT PWGL::onRender()
             Vertex4F(0.0f, 0.0f, far_ / (far_ - near_), near_ * far_ / (far_ - near_)),
             Vertex4F(0.0f, 0.0f, -1.0f, 0.0f)
         );
-        std::vector<Vertex3F> pointList;
-        std::vector<Vertex3F>::iterator itPointList;
-        Vertex3F proj0 = p0.toPoint4F().product(projection).normalize().toVertex3F();
-        Vertex3F proj1 = p1.toPoint4F().product(projection).normalize().toVertex3F();
-        Vertex3F proj2 = p2.toPoint4F().product(projection).normalize().toVertex3F();
-        Vertex3F projNorm = crossProduct((proj1 - proj0), (proj2 - proj1));
+        INT index = 0;
+        Vertex3F pointList[10];
+        Vertex3F proj[3];
+        proj[0] = p[0].toPoint4F().product(projection).normalize().toVertex3F();
+        proj[1] = p[1].toPoint4F().product(projection).normalize().toVertex3F();
+        proj[2] = p[2].toPoint4F().product(projection).normalize().toVertex3F();
+        Vertex3F projNorm = crossProduct((proj[1] - proj[0]), (proj[2] - proj[1]));
         if (projNorm[3] < 0.0f) continue;
-        pointList.push_back(proj0);
-        pointList.push_back(proj1);
-        pointList.push_back(proj2);
-        pointList.push_back(proj0);
-        itPointList = pointList.begin();
-        while (itPointList != pointList.end())
+        /* 3条边 */
+        for (int edgeIndex = 0; edgeIndex < 3; edgeIndex++)
         {
-            if (itPointList + 1 == pointList.end())
+            int start = edgeIndex;
+            int end = (edgeIndex + 1) % 3;
+            if (proj[start][3] > 0.0f)
             {
-                itPointList = pointList.erase(itPointList);
-                break;
-            }
-            Vertex3F startP = *itPointList;
-            Vertex3F endP = *(itPointList + 1);
-            if (startP[3] > 0.0f)
-            {
-                itPointList = pointList.erase(itPointList);
-                if (endP[3] > 0.0f)
+                if (proj[end][3] > 0.0f)
                 {
                 }
-                else if(endP[3] < -1.0f)
+                else if (proj[end][3] < -1.0f)
                 {
-                    FLOAT t = (startP[3] + 1.0f) / (startP[3] - endP[3]);
-                    itPointList = pointList.insert(itPointList, startP + (endP - startP) * t);
-                    t = (startP[3] - 0.0f) / (startP[3] - endP[3]);
-                    itPointList = pointList.insert(itPointList, startP + (endP - startP) * t);
-                    itPointList += 2;
+                    FLOAT t = (proj[start][3] - 0.0f) / (proj[start][3] - proj[end][3]);
+                    pointList[index++] = proj[start] + (proj[end] - proj[start]) * t;
+                    t = (proj[start][3] + 1.0f) / (proj[start][3] - proj[end][3]);
+                    pointList[index++] = proj[start] + (proj[end] - proj[start]) * t;
                 }
                 else
                 {
-                    FLOAT t = (startP[3] - 0.0f) / (startP[3] - endP[3]);
-                    itPointList = pointList.insert(itPointList, startP + (endP - startP) * t);
-                    itPointList++;
+                    FLOAT t = (proj[start][3] - 0.0f) / (proj[start][3] - proj[end][3]);
+                    pointList[index++] = proj[start] + (proj[end] - proj[start]) * t;
                 }
             }
-            else if (startP[3] < -1.0f)
+            else if (proj[start][3] < -1.0f)
             {
-                itPointList = pointList.erase(itPointList);
-                if (endP[3] > 0.0f)
+                if (proj[end][3] > 0.0f)
                 {
-                    FLOAT t = (startP[3] - 0.0f) / (startP[3] - endP[3]);
-                    itPointList = pointList.insert(itPointList, startP + (endP - startP) * t);
-                    t = (startP[3] + 1.0f) / (startP[3] - endP[3]);
-                    itPointList = pointList.insert(itPointList, startP + (endP - startP) * t);
-                    itPointList += 2;
+                    FLOAT t = (proj[start][3] + 1.0f) / (proj[start][3] - proj[end][3]);
+                    pointList[index++] = proj[start] + (proj[end] - proj[start]) * t;
+                    t = (proj[start][3] - 0.0f) / (proj[start][3] - proj[end][3]);
+                    pointList[index++] = proj[start] + (proj[end] - proj[start]) * t;
                 }
-                else if (endP[3] < -1.0f)
+                else if (proj[end][3] < -1.0f)
                 {
                 }
                 else
                 {
-                    FLOAT t = (startP[3] + 1.0f) / (startP[3] - endP[3]);
-                    itPointList = pointList.insert(itPointList, startP + (endP - startP) * t);
-                    itPointList++;
+                    FLOAT t = (proj[start][3] + 1.0f) / (proj[start][3] - proj[end][3]);
+                    pointList[index++] = proj[start] + (proj[end] - proj[start]) * t;
                 }
             }
             else {
-                itPointList++;
-                if (endP[3] > 0.0f)
+                pointList[index++] = proj[start];
+                if (proj[end][3] > 0.0f)
                 {
-                    FLOAT t = (startP[3] - 0.0f) / (startP[3] - endP[3]);
-                    itPointList = pointList.insert(itPointList, startP + (endP - startP) * t);
-                    itPointList++;
+                    FLOAT t = (proj[start][3] - 0.0f) / (proj[start][3] - proj[end][3]);
+                    pointList[index++] = proj[start] + (proj[end] - proj[start]) * t;
                 }
-                else if (endP[3] < -1.0f)
+                else if (proj[end][3] < -1.0f)
                 {
-                    FLOAT t = (startP[3] + 1.0f) / (startP[3] - endP[3]);
-                    itPointList = pointList.insert(itPointList, startP + (endP - startP) * t);
-                    itPointList++;
+                    FLOAT t = (proj[start][3] + 1.0f) / (proj[start][3] - proj[end][3]);
+                    pointList[index++] = proj[start] + (proj[end] - proj[start]) * t;
                 }
             }
         }
-        if (pointList.size() < 3) continue;
-        //TODO
+        if (index < 3) continue;
         /* 光栅化 */
         /* 裁剪后的每个三角形 */
-        for (int k = 1; k < pointList.size() - 1; k++)
+        for (int k = 1; k < index - 1; k++)
         {
-            Vertex3F tmp0 = pointList[0];
-            Vertex3F tmp1 = pointList[k];
-            Vertex3F tmp2 = pointList[k + 1];
-            FLOAT yMax = max(max(tmp0[2], tmp1[2]), tmp2[2]);
-            FLOAT yMin = min(min(tmp0[2], tmp1[2]), tmp2[2]);
+            FLOAT yMax = max(max(pointList[0][2], pointList[k][2]), pointList[k + 1][2]);
+            FLOAT yMin = min(min(pointList[0][2], pointList[k][2]), pointList[k + 1][2]);
             INT iyMax = static_cast<INT>(yMax);
             INT iyMin = static_cast<INT>(yMin);
             FLOAT delta = yMin - static_cast<FLOAT>(iyMin);
@@ -328,29 +306,29 @@ HRESULT PWGL::onRender()
                 FLOAT xMin = static_cast<FLOAT>(WINDOW_WIDTH - 1);
                 FLOAT xMax = 0.0f;
                 /* 忽略水平线 */
-                if (tmp0[2] != tmp1[2])
+                if (pointList[0][2] != pointList[k][2])
                 {
-                    if ((tmp0[2] - row) * (tmp1[2] - row) < 0.0f)
+                    if ((pointList[0][2] - row) * (pointList[k][2] - row) < 0.0f)
                     {
-                        FLOAT tmpx = (tmp0[1] - tmp1[1]) / (tmp0[2] - tmp1[2]) * (row - tmp0[2]) + tmp0[1];
+                        FLOAT tmpx = (pointList[0][1] - pointList[k][1]) / (pointList[0][2] - pointList[k][2]) * (row - pointList[0][2]) + pointList[0][1];
                         if (tmpx > xMax) xMax = tmpx;
                         if (tmpx < xMin) xMin = tmpx;
                     }
                 }
-                if (tmp0[2] != tmp2[2])
+                if (pointList[0][2] != pointList[k + 1][2])
                 {
-                    if ((tmp0[2] - row) * (tmp2[2] - row) < 0.0f)
+                    if ((pointList[0][2] - row) * (pointList[k + 1][2] - row) < 0.0f)
                     {
-                        FLOAT tmpx = (tmp0[1] - tmp2[1]) / (tmp0[2] - tmp2[2]) * (row - tmp0[2]) + tmp0[1];
+                        FLOAT tmpx = (pointList[0][1] - pointList[k + 1][1]) / (pointList[0][2] - pointList[k + 1][2]) * (row - pointList[0][2]) + pointList[0][1];
                         if (tmpx > xMax) xMax = tmpx;
                         if (tmpx < xMin) xMin = tmpx;
                     }
                 }
-                if (tmp2[2] != tmp1[2])
+                if (pointList[k + 1][2] != pointList[k][2])
                 {
-                    if ((tmp1[2] - row) * (tmp2[2] - row) < 0.0f)
+                    if ((pointList[k][2] - row) * (pointList[k + 1][2] - row) < 0.0f)
                     {
-                        FLOAT tmpx = (tmp2[1] - tmp1[1]) / (tmp2[2] - tmp1[2]) * (row - tmp2[2]) + tmp2[1];
+                        FLOAT tmpx = (pointList[k + 1][1] - pointList[k][1]) / (pointList[k + 1][2] - pointList[k][2]) * (row - pointList[k + 1][2]) + pointList[k + 1][1];
                         if (tmpx > xMax) xMax = tmpx;
                         if (tmpx < xMin) xMin = tmpx;
                     }
@@ -361,17 +339,15 @@ HRESULT PWGL::onRender()
                 ixMax = min(WINDOW_WIDTH - 1, ixMax);
                 for (INT col = ixMin; col <= ixMax; col++)
                 {
-                    FLOAT v0 = (col - proj2[1]) * (proj1[2] - proj2[2]) + (row - proj2[2]) * (proj2[1] - proj1[1]);
-                    v0 /= (proj0[1] - proj2[1]) * (proj1[2] - proj2[2]) + (proj0[2] - proj2[2]) * (proj2[1] - proj1[1]);
-                    FLOAT v1 = (col - proj0[1]) * (proj2[2] - proj0[2]) + (row - proj0[2]) * (proj0[1] - proj2[1]);
-                    v1 /= (proj1[1] - proj0[1]) * (proj2[2] - proj0[2]) + (proj1[2] - proj0[2]) * (proj0[1] - proj2[1]);
-                    FLOAT v2 = (col - proj1[1]) * (proj0[2] - proj1[2]) + (row - proj1[2]) * (proj1[1] - proj0[1]);
-                    v2 /= (proj2[1] - proj1[1]) * (proj0[2] - proj1[2]) + (proj2[2] - proj1[2]) * (proj1[1] - proj0[1]);
-                    FLOAT depth = v0 * proj0[3] + v1 * proj1[3] + v2 * proj2[3];
+                    FLOAT v0 = (col - proj[2][1]) * (proj[1][2] - proj[2][2]) + (row - proj[2][2]) * (proj[2][1] - proj[1][1]);
+                    v0 /= (proj[0][1] - proj[2][1]) * (proj[1][2] - proj[2][2]) + (proj[0][2] - proj[2][2]) * (proj[2][1] - proj[1][1]);
+                    FLOAT v1 = (col - proj[0][1]) * (proj[2][2] - proj[0][2]) + (row - proj[0][2]) * (proj[0][1] - proj[2][1]);
+                    v1 /= (proj[1][1] - proj[0][1]) * (proj[2][2] - proj[0][2]) + (proj[1][2] - proj[0][2]) * (proj[0][1] - proj[2][1]);
+                    FLOAT v2 = 1 - v0 - v1;
+                    FLOAT depth = v0 * proj[0][3] + v1 * proj[1][3] + v2 * proj[2][3];
                     if (zBuffer_[row * WINDOW_WIDTH + col] > -depth) continue;
                     zBuffer_[row * WINDOW_WIDTH + col] = -depth;
-                    Vertex3F jiInView = p0 * v0 + p1 * v1 + p2 * v2;
-                    UINT color = 0x00FF0000;
+                    Vertex3F jiInView = p[0] * v0 + p[1] * v1 + p[2] * v2;
                     /* 光照 */
                     Vertex3F l = (lightInView - jiInView).normalize();
                     Vertex3F r = norm * 2.0f * l.dotProduct(norm) - l;
@@ -379,8 +355,9 @@ HRESULT PWGL::onRender()
                     FLOAT vDiff = max(norm.dotProduct(l), 0.0f);
                     FLOAT vSpec = max(v.dotProduct(r) * v.dotProduct(r) * v.dotProduct(r) * v.dotProduct(r), 0.0f);
                     FLOAT vAmb = 1.0f;
-                    color = 255 * (vDiff * lightDiffuse_[1] + vSpec * lightSpecular_[1] + vAmb * lightAmbient[1]);
+                    UINT color = 255 * (vDiff * lightDiffuse_[1] + vSpec * lightSpecular_[1] + vAmb * lightAmbient[1]);
                     color <<= 16;
+                    //UINT color = 0x00FF0000;
                     bmpBuffer_[row * WINDOW_WIDTH + col] = color;
                 }
             }
