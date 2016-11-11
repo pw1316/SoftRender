@@ -1,6 +1,7 @@
 #include "pwgl.h"
 
-#include <vector>
+#include <cstdio>
+#include <omp.h>
 
 #define PI 3.1415926535898f
 
@@ -301,6 +302,7 @@ HRESULT PWGL::onRender()
             iyMin = max(0, iyMin);
             iyMax = min(WINDOW_HEIGHT - 1, iyMax);
             /* É¨ÃèÃ¿Ò»ÐÐ */
+#pragma omp parallel for schedule(dynamic,4)
             for (INT row = iyMax; row >= iyMin; row--)
             {
                 FLOAT xMin = static_cast<FLOAT>(WINDOW_WIDTH - 1);

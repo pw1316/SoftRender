@@ -117,6 +117,7 @@ FLOAT Vertex3F::operator[](const int & index) const
 FLOAT Vertex3F::length() const
 {
     FLOAT len = sqrt(this->x_ * this->x_ + this->y_ * this->y_ + this->z_ * this->z_);
+    //FLOAT len = quickSqrt(this->x_ * this->x_ + this->y_ * this->y_ + this->z_ * this->z_);
     isAndSetZero(len);
     return len;
 }
