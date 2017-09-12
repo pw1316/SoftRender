@@ -3,7 +3,7 @@
 #include "Matrix.h"
 #include "Camera.h"
 
-#define TEST
+//#define TEST
 
 #ifndef TEST
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {

@@ -54,11 +54,15 @@ private:
     HBITMAP hBITMAP_ = nullptr;
     BITMAPINFO bmpInfo_ = {};
     UINT *bmpBuffer_ = nullptr;
+    HBITMAP hTexture_ = nullptr;
+    BITMAP texture_ = {};
 
     /* 立方体initDevice里初始化 */
     FLOAT *zBuffer_;
     /* 顶点缓存 */
     Vertex3F vertexBuffer_[8];
+    FLOAT vertexU[8];
+    FLOAT vertexV[8];
     /* 索引缓存，右手逆时针法向量 */
     TriangleIndex indexBuffer_[12];
     /* 世界变换，yzy欧拉角 p世界 = p刚体 * R(gamma) * R(beta) * R(alpha) */

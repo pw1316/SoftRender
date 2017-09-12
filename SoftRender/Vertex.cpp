@@ -61,7 +61,6 @@ Vertex3F & Vertex3F::operator*=(const FLOAT & rhs)
 
 Vertex3F Vertex3F::operator/(const FLOAT & rhs) const
 {
-    Assert(rhs != 0.0f);
     FLOAT x = this->x_ / rhs;
     FLOAT y = this->y_ / rhs;
     FLOAT z = this->z_ / rhs;
@@ -70,7 +69,6 @@ Vertex3F Vertex3F::operator/(const FLOAT & rhs) const
 
 Vertex3F & Vertex3F::operator/=(const FLOAT & rhs)
 {
-    Assert(rhs != 0.0f);
     this->x_ /= rhs;
     this->y_ /= rhs;
     this->z_ /= rhs;
@@ -117,7 +115,7 @@ FLOAT Vertex3F::operator[](const int & index) const
 FLOAT Vertex3F::length() const
 {
     FLOAT len = sqrt(this->x_ * this->x_ + this->y_ * this->y_ + this->z_ * this->z_);
-    //FLOAT len = quickSqrt(this->x_ * this->x_ + this->y_ * this->y_ + this->z_ * this->z_);
+    //FLOAT len = 1.0 / quickInvSqrt(this->x_ * this->x_ + this->y_ * this->y_ + this->z_ * this->z_);
     isAndSetZero(len);
     return len;
 }

@@ -3,7 +3,6 @@
 
 int mid(int low, int value, int high)
 {
-    Assert(low < high);
     return min(max(low, value), high);
 }
 

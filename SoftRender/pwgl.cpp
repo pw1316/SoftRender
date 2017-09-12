@@ -6,13 +6,13 @@
 #define PI 3.1415926535898f
 
 /* Static Menber */
-PWGL *PWGL::instance_ = nullptr;
+PWGL* PWGL::instance_ = nullptr;
 LPCSTR PWGL::WINDOW_CLASS_NAME = "PWGL";
 const INT PWGL::WINDOW_WIDTH = 800;
 const INT PWGL::WINDOW_HEIGHT = 600;
 
 /* Methods */
-PWGL * PWGL::getInstance()
+PWGL* PWGL::getInstance()
 {
     if (PWGL::instance_ == nullptr)
     {
@@ -97,6 +97,8 @@ HRESULT PWGL::initDevice()
     bmpInfo_.bmiHeader.biClrUsed = 0;
     bmpInfo_.bmiHeader.biClrImportant = 0;
     hBITMAP_ = CreateDIBSection(hMemDC_, &bmpInfo_, DIB_RGB_COLORS, (void**)&bmpBuffer_, NULL, 0);
+    hTexture_ = (HBITMAP)::LoadImage(HINST_THISCOMPONENT, "Texture.bmp", IMAGE_BITMAP, 0, 0, LR_DEFAULTCOLOR | LR_CREATEDIBSECTION | LR_LOADFROMFILE);
+    GetObject(hTexture_, sizeof(BITMAP), &texture_);
 #pragma endregion
     zBuffer_ = new FLOAT[WINDOW_WIDTH * WINDOW_HEIGHT];
 #pragma region regionVertexBuffer
@@ -109,6 +111,14 @@ HRESULT PWGL::initDevice()
     vertexBuffer_[5] = Vertex3F(0.5f, -0.5f, 0.5f);//右下前
     vertexBuffer_[6] = Vertex3F(0.5f, 0.5f, -0.5f);//右上后
     vertexBuffer_[7] = Vertex3F(0.5f, 0.5f, 0.5f);//右上前
+    vertexU[0] = 1; vertexV[0] = 1;
+    vertexU[1] = 0; vertexV[1] = 1;
+    vertexU[2] = 1; vertexV[2] = 0;
+    vertexU[3] = 0; vertexV[3] = 0;
+    vertexU[4] = 0; vertexV[4] = 1;
+    vertexU[5] = 1; vertexV[5] = 1;
+    vertexU[6] = 0; vertexV[6] = 0;
+    vertexU[7] = 1; vertexV[7] = 0;
 #pragma endregion
 #pragma region regionIndexBuffer
     /* 索引缓存 */
@@ -203,6 +213,7 @@ HRESULT PWGL::onRender()
     /* proj0, proj1, proj2 面顶点的屏幕坐标 */
     /* pointList 裁剪面顶点的屏幕坐标 */
     /* (j, i) 插值点的屏幕坐标 */
+#pragma omp parallel for
     for (int face = 0; face < 12; face++)
     {
         /* 局部坐标系 */
@@ -210,6 +221,14 @@ HRESULT PWGL::onRender()
         p[0] = vertexBuffer_[this->indexBuffer_[face].p0];
         p[1] = vertexBuffer_[this->indexBuffer_[face].p1];
         p[2] = vertexBuffer_[this->indexBuffer_[face].p2];
+        FLOAT pu[3];
+        pu[0] = vertexU[this->indexBuffer_[face].p0];
+        pu[1] = vertexU[this->indexBuffer_[face].p1];
+        pu[2] = vertexU[this->indexBuffer_[face].p2];
+        FLOAT pv[3];
+        pv[0] = vertexV[this->indexBuffer_[face].p0];
+        pv[1] = vertexV[this->indexBuffer_[face].p1];
+        pv[2] = vertexV[this->indexBuffer_[face].p2];
         /* 观察坐标系 */
         p[0] = p[0].toPoint4F().product(transform).toVertex3F();
         p[1] = p[1].toPoint4F().product(transform).toVertex3F();
@@ -302,7 +321,6 @@ HRESULT PWGL::onRender()
             iyMin = max(0, iyMin);
             iyMax = min(WINDOW_HEIGHT - 1, iyMax);
             /* 扫描每一行 */
-#pragma omp parallel for schedule(dynamic,4)
             for (INT row = iyMax; row >= iyMin; row--)
             {
                 FLOAT xMin = static_cast<FLOAT>(WINDOW_WIDTH - 1);
@@ -346,10 +364,20 @@ HRESULT PWGL::onRender()
                     FLOAT v1 = (col - proj[0][1]) * (proj[2][2] - proj[0][2]) + (row - proj[0][2]) * (proj[0][1] - proj[2][1]);
                     v1 /= (proj[1][1] - proj[0][1]) * (proj[2][2] - proj[0][2]) + (proj[1][2] - proj[0][2]) * (proj[0][1] - proj[2][1]);
                     FLOAT v2 = 1 - v0 - v1;
-                    FLOAT depth = v0 * proj[0][3] + v1 * proj[1][3] + v2 * proj[2][3];
+                    FLOAT depth = 1 / (v0 / p[0][3] + v1 / p[1][3] + v2 / p[2][3]);
                     if (zBuffer_[row * WINDOW_WIDTH + col] > -depth) continue;
                     zBuffer_[row * WINDOW_WIDTH + col] = -depth;
+                    /* Z-fix */
+                    {
+                        v0 = v0 * depth / p[0][3];
+                        v1 = v1 * depth / p[1][3];
+                        v2 = 1 - v0 - v1;
+                    }
                     Vertex3F jiInView = p[0] * v0 + p[1] * v1 + p[2] * v2;
+                    FLOAT uInView = pu[0] * v0 + pu[1] * v1 + pu[2] * v2;
+                    FLOAT vInView = pv[0] * v0 + pv[1] * v1 + pv[2] * v2;
+                    uInView = min(max(uInView, 0), 1);
+                    vInView = min(max(vInView, 0), 1);
                     /* 光照 */
                     Vertex3F l = (lightInView - jiInView).normalize();
                     Vertex3F r = norm * 2.0f * l.dotProduct(norm) - l;
@@ -357,10 +385,13 @@ HRESULT PWGL::onRender()
                     FLOAT vDiff = max(norm.dotProduct(l), 0.0f);
                     FLOAT vSpec = max(v.dotProduct(r) * v.dotProduct(r) * v.dotProduct(r) * v.dotProduct(r), 0.0f);
                     FLOAT vAmb = 1.0f;
-                    UINT color = 255 * (vDiff * lightDiffuse_[1] + vSpec * lightSpecular_[1] + vAmb * lightAmbient[1]);
-                    color <<= 16;
-                    //UINT color = 0x00FF0000;
-                    bmpBuffer_[row * WINDOW_WIDTH + col] = color;
+                    BYTE* position = (BYTE*)(texture_.bmBits);
+                    position = position + texture_.bmWidthBytes * static_cast<INT>(vInView * (texture_.bmHeight - 1));
+                    position = position + texture_.bmBitsPixel * static_cast<INT>(uInView * (texture_.bmWidth - 1)) / 8;
+                    UINT blue = *position * (vDiff * lightDiffuse_[1] + vSpec * lightSpecular_[1] + vAmb * lightAmbient[1]);
+                    UINT green = *(position + 1) * (vDiff * lightDiffuse_[2] + vSpec * lightSpecular_[2] + vAmb * lightAmbient[2]);
+                    UINT red = *(position + 2) * (vDiff * lightDiffuse_[3] + vSpec * lightSpecular_[3] + vAmb * lightAmbient[3]);
+                    bmpBuffer_[row * WINDOW_WIDTH + col] = (red << 16) | (green << 8) | blue;
                 }
             }
         }
@@ -375,7 +406,7 @@ HRESULT PWGL::onRender()
     TextOut(hMemDC_, 0, 0, fpsBuffer, lstrlen(fpsBuffer));
     SelectObject(hMemDC_, hBITMAP_);
     BitBlt(hDC_, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, hMemDC_, 0, 0, SRCCOPY);
-    
+
     /* 计算FPS */
     QueryPerformanceCounter(&endTick);
     LARGE_INTEGER delta;

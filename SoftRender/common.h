@@ -2,16 +2,7 @@
 #include <windows.h>
 #include <cmath>
 
-/* Define assertion */
-#ifndef Assert
-#if defined( DEBUG ) || defined( _DEBUG )
-#define Assert(b) do {if (!(b)) {OutputDebugString(TEXT("Assert: " #b "\n"));}} while(0)
-#else
-#define Assert(b)
-#endif //DEBUG || _DEBUG
-#endif
-
-__forceinline BOOL isAndSetZero(FLOAT & value) {
+__forceinline BOOL isAndSetZero(FLOAT& value) {
     if (abs(value) < 1e-7f)
     {
         value = 0.0f;
@@ -20,7 +11,7 @@ __forceinline BOOL isAndSetZero(FLOAT & value) {
     return false;
 }
 
-__forceinline FLOAT quickSqrt(FLOAT number)
+__forceinline FLOAT quickInvSqrt(FLOAT number)
 {
     LONG i;
     FLOAT x2, y;
