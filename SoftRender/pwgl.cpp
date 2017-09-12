@@ -213,7 +213,7 @@ HRESULT PWGL::onRender()
     /* proj0, proj1, proj2 面顶点的屏幕坐标 */
     /* pointList 裁剪面顶点的屏幕坐标 */
     /* (j, i) 插值点的屏幕坐标 */
-#pragma omp parallel for
+//#pragma omp parallel for
     for (int face = 0; face < 12; face++)
     {
         /* 局部坐标系 */
@@ -357,6 +357,7 @@ HRESULT PWGL::onRender()
                 INT ixMax = static_cast<INT>(xMax);
                 ixMin = max(0, ixMin);
                 ixMax = min(WINDOW_WIDTH - 1, ixMax);
+#pragma omp parallel for
                 for (INT col = ixMin; col <= ixMax; col++)
                 {
                     FLOAT v0 = (col - proj[2][1]) * (proj[1][2] - proj[2][2]) + (row - proj[2][2]) * (proj[2][1] - proj[1][1]);
@@ -454,7 +455,7 @@ LRESULT PWGL::wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
             case WM_MOUSEWHEEL:
             {
-                LONG zDelta = GET_WHEEL_DELTA_WPARAM(wParam) / 120;
+                FLOAT zDelta = 1.0f * GET_WHEEL_DELTA_WPARAM(wParam) / 1200;
                 ppwgl->camera_.moveForward(zDelta);
             }
             result = 0;
