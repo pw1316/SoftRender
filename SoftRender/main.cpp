@@ -1,4 +1,4 @@
-#include "pwgl.h"
+#include "PWGL.hpp"
 #include "Vertex.h"
 #include "Matrix.h"
 #include "Camera.h"

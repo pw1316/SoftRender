@@ -1,4 +1,4 @@
-#include "pwgl.h"
+#include "PWGL.hpp"
 
 #include <cstdio>
 #include <omp.h>
