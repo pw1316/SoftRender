@@ -122,14 +122,16 @@
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Matrix.cpp" />
-    <ClCompile Include="PWGL.cpp" />
+    <ClCompile Include="PWRenderer.cpp" />
     <ClCompile Include="Vertex.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
     <ClInclude Include="common.h" />
+    <ClInclude Include="Math3D.hpp" />
     <ClInclude Include="Matrix.h" />
-    <ClInclude Include="PWGL.hpp" />
+    <ClInclude Include="PWRenderer.hpp" />
+    <ClInclude Include="stdafx.h" />
     <ClInclude Include="Vertex.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

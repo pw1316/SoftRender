@@ -1,4 +1,4 @@
-#include "PWGL.hpp"
+#include "PWRenderer.hpp"
 
 #include <cstdio>
 #include <omp.h>
@@ -510,4 +510,3 @@ LRESULT PWGL::wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     }
     return result;
 }
-

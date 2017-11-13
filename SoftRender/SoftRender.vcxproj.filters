@@ -23,7 +23,7 @@
     <ClCompile Include="Camera.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="PWGL.cpp">
+    <ClCompile Include="PWRenderer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -40,7 +40,13 @@
     <ClInclude Include="Camera.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="PWGL.hpp">
+    <ClInclude Include="Math3D.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="PWRenderer.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="stdafx.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
