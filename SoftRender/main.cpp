@@ -1,9 +1,10 @@
 #include "PWRenderer.hpp"
-#include "Vertex.h"
-#include "Matrix.h"
-#include "Camera.h"
+//#include "Vertex.h"
+//#include "Matrix.h"
+//#include "Camera.h"
+#include "Math.hpp"
 
-//#define TEST
+#define TEST
 
 #ifndef TEST
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
@@ -27,11 +28,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 }
 #else
 int main() {
-    {
-        Vertex3F v1(0, 0, 0);
-        Camera camera;
-        Matrix4x4 m = camera.matrix();
-        v1 = v1.toPoint4F().product(camera.matrix()).toVertex3F();
-    }
+    Math::Vector4d v1(1, 2, 3, 2);
+    Math::Vector4d v2 = v1.normal();
+    Math::Vector4d v3(1, 2, 3, 0);
+    Math::Vector4d v4 = v3.normal();
+    v4.setW(111);
 }
 #endif
