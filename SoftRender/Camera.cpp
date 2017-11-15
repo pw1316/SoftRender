@@ -1,5 +1,3 @@
-#include "Vertex.h"
-#include "Matrix.h"
 #include "Camera.h"
 
 Camera::Camera()

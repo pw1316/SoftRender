@@ -3,13 +3,13 @@
 #include <cstdio>
 #include <omp.h>
 
-#define PI 3.1415926535898f
+#define PI 3.1415926535898
 
 /* Static Menber */
 PWGL* PWGL::instance_ = nullptr;
 LPCSTR PWGL::WINDOW_CLASS_NAME = "PWGL";
-const INT PWGL::WINDOW_WIDTH = 800;
-const INT PWGL::WINDOW_HEIGHT = 600;
+const PWint PWGL::WINDOW_WIDTH = 800;
+const PWint PWGL::WINDOW_HEIGHT = 600;
 
 /* Methods */
 PWGL* PWGL::getInstance()
@@ -100,17 +100,17 @@ HRESULT PWGL::initDevice()
     hTexture_ = (HBITMAP)::LoadImage(HINST_THISCOMPONENT, "Texture.bmp", IMAGE_BITMAP, 0, 0, LR_DEFAULTCOLOR | LR_CREATEDIBSECTION | LR_LOADFROMFILE);
     GetObject(hTexture_, sizeof(BITMAP), &texture_);
 #pragma endregion
-    zBuffer_ = new FLOAT[WINDOW_WIDTH * WINDOW_HEIGHT];
+    zBuffer_ = new PWdouble[WINDOW_WIDTH * WINDOW_HEIGHT];
 #pragma region regionVertexBuffer
-    /* 顶点缓存 */
-    vertexBuffer_[0] = Vertex3F(-0.5f, -0.5f, -0.5f);//左下后
-    vertexBuffer_[1] = Vertex3F(-0.5f, -0.5f, 0.5f);//左下前
-    vertexBuffer_[2] = Vertex3F(-0.5f, 0.5f, -0.5f);//左上后
-    vertexBuffer_[3] = Vertex3F(-0.5f, 0.5f, 0.5f);//左上前
-    vertexBuffer_[4] = Vertex3F(0.5f, -0.5f, -0.5f);//右下后
-    vertexBuffer_[5] = Vertex3F(0.5f, -0.5f, 0.5f);//右下前
-    vertexBuffer_[6] = Vertex3F(0.5f, 0.5f, -0.5f);//右上后
-    vertexBuffer_[7] = Vertex3F(0.5f, 0.5f, 0.5f);//右上前
+    /* Vertex Buffer */
+    vertexBuffer_[0] = Math::Vector3d(-0.5f, -0.5f, -0.5f);//LeftBottomBehind
+    vertexBuffer_[1] = Math::Vector3d(-0.5f, -0.5f, 0.5f);//LBF
+    vertexBuffer_[2] = Math::Vector3d(-0.5f, 0.5f, -0.5f);//LTB
+    vertexBuffer_[3] = Math::Vector3d(-0.5f, 0.5f, 0.5f);//LTF
+    vertexBuffer_[4] = Math::Vector3d(0.5f, -0.5f, -0.5f);//RBB
+    vertexBuffer_[5] = Math::Vector3d(0.5f, -0.5f, 0.5f);//RBF
+    vertexBuffer_[6] = Math::Vector3d(0.5f, 0.5f, -0.5f);//RTB
+    vertexBuffer_[7] = Math::Vector3d(0.5f, 0.5f, 0.5f);//RTF
     vertexU[0] = 1; vertexV[0] = 1;
     vertexU[1] = 0; vertexV[1] = 1;
     vertexU[2] = 1; vertexV[2] = 0;
@@ -121,7 +121,7 @@ HRESULT PWGL::initDevice()
     vertexU[7] = 1; vertexV[7] = 0;
 #pragma endregion
 #pragma region regionIndexBuffer
-    /* 索引缓存 */
+    /* Index Buffer */
     indexBuffer_[0] = { 1, 5, 7 };
     indexBuffer_[1] = { 1, 7, 3 };
     indexBuffer_[2] = { 5, 4, 6 };
@@ -135,31 +135,28 @@ HRESULT PWGL::initDevice()
     indexBuffer_[10] = { 0, 4, 5 };
     indexBuffer_[11] = { 0, 5, 1 };
 #pragma endregion
-    /* 世界坐标变换 */
+    /* Model-World parameters */
     rotAlpha_ = 0.0f;
     rotAlphaV_ = 0.0f;
     rotBeta_ = 0.0f;
     rotBetaV_ = 0.0f;
     rotGamma_ = 0.0f;
     rotGammaV_ = 0.0f;
-    /* 摄像机 */
-    Vertex3F camEye(0.0f, 0.0f, 2.0f);
-    Vertex3F camAt(0.0f, 0.0f, 0.0f);
-    Vertex3F camUp(0.0f, 1.0f, 0.0f);
-    camera_ = Camera(camEye, camAt, camUp);
-    /* 投影 */
+    /* World-View matrix */
+    camera_ = Camera::lookAt(0, 0, 2, 0, 0, 0, 0, 1, 0);
+    /* Projection parameters */
     fovx_ = 60.0f;
     aspect_ = 1.0f * WINDOW_WIDTH / WINDOW_HEIGHT;
     near_ = 1.0f;
     far_ = 100.0f;
-    /* 光源 */
-    lightPos.set(0.0f, 0.0f, 5.0f);//点光源位置(世界坐标)
-    lightDiffuse_.set(0.4f, 0.4f, 0.4f);//漫反射光颜色(R, G, B)
-    lightSpecular_.set(0.4f, 0.4f, 0.4f);//镜面反射光颜色(R, G, B)
-    lightAmbient.set(0.2f, 0.2f, 0.2f);//环境光颜色(R, G, B)
-    range_ = 100.0f;//最大光程
+    /* Light */
+    lightPos.set(0.0f, 0.0f, 5.0f);
+    lightDiffuse_.set(0.4f, 0.4f, 0.4f);
+    lightSpecular_.set(0.4f, 0.4f, 0.4f);
+    lightAmbient.set(0.2f, 0.2f, 0.2f);
+    range_ = 100.0f;
 
-    /* 计算FPS */
+    /* FPS counter */
     QueryPerformanceFrequency(&frequency_);
     return hr;
 }
@@ -196,207 +193,212 @@ HRESULT PWGL::onRender()
     for (int i = 0; i < WINDOW_WIDTH * WINDOW_HEIGHT; i++)
     {
         bmpBuffer_[i] = 0x00D7C4BB;
-        zBuffer_[i] = 0.0f;
+        zBuffer_[i] = -1;
     }
 
-    /*TODO Render*/
-    Matrix4x4 transform;
+    Math::Matrix44d transform;
     transform.setRotate(0.0f, 1.0f, 0.0f, rotGamma_ / 180.0f * PI);
     transform.addRotate(0.0f, 0.0f, 1.0f, rotBeta_ / 180.0f * PI);
     transform.addRotate(0.0f, 1.0f, 0.0f, rotAlpha_ / 180.0f * PI);
     rotAlpha_ += rotAlphaV_ * 60.f / fps_;
     rotBeta_ += rotBetaV_ * 60.f / fps_;
     rotGamma_ += rotGammaV_ * 60.f / fps_;
-    transform *= camera_.matrix();
-    Vertex3F lightInView = lightPos.toPoint4F().product(camera_.matrix()).toVertex3F();
-    /* p0, p1, p2 面顶点的观察坐标 */
-    /* proj0, proj1, proj2 面顶点的屏幕坐标 */
-    /* pointList 裁剪面顶点的屏幕坐标 */
-    /* (j, i) 插值点的屏幕坐标 */
-//#pragma omp parallel for
-    for (int face = 0; face < 12; face++)
+    transform = camera_ * transform;
+    camera_ * lightPos.toVector4d1();
+    Math::Vector3d lightInView = (camera_ * lightPos.toVector4d1()).toVector3d();
+    /* p0, p1, p2: Face's vertices in view */
+    /* proj0, proj1, proj2: Face's vertices in projection */
+    /* screen0, screen1, screen2: Face's vertices in projection with w normalized */
+    /* pointList: Clipped triangle list */
+    /* (j, i) Point on screen */
+    for (int face = 0; face < 4; face++)
     {
-        /* 局部坐标系 */
-        Vertex3F p[3];
+        /* Model */
+        Math::Vector3d p[3];
         p[0] = vertexBuffer_[this->indexBuffer_[face].p0];
         p[1] = vertexBuffer_[this->indexBuffer_[face].p1];
         p[2] = vertexBuffer_[this->indexBuffer_[face].p2];
-        FLOAT pu[3];
+        PWdouble pu[3];
         pu[0] = vertexU[this->indexBuffer_[face].p0];
         pu[1] = vertexU[this->indexBuffer_[face].p1];
         pu[2] = vertexU[this->indexBuffer_[face].p2];
-        FLOAT pv[3];
+        PWdouble pv[3];
         pv[0] = vertexV[this->indexBuffer_[face].p0];
         pv[1] = vertexV[this->indexBuffer_[face].p1];
         pv[2] = vertexV[this->indexBuffer_[face].p2];
-        /* 观察坐标系 */
-        p[0] = p[0].toPoint4F().product(transform).toVertex3F();
-        p[1] = p[1].toPoint4F().product(transform).toVertex3F();
-        p[2] = p[2].toPoint4F().product(transform).toVertex3F();
-        Vertex3F norm = crossProduct((p[1] - p[0]), (p[2] - p[1]));
-        /* 裁剪，投影 */
-        Matrix4x4 projection(
-            Vertex4F(1.0f * WINDOW_WIDTH / tan(fovx_ / 180.0f * PI / 2.0f) / 2.0f, 0.0f, -1.0f * WINDOW_WIDTH / 2.0f, 0.0f),
-            Vertex4F(0.0f, 1.0f * WINDOW_HEIGHT * aspect_ / tan(fovx_ / 180.0f * PI / 2.0f) / 2.0f, -1.0f * WINDOW_HEIGHT / 2.0f, 0.0f),
-            Vertex4F(0.0f, 0.0f, far_ / (far_ - near_), near_ * far_ / (far_ - near_)),
-            Vertex4F(0.0f, 0.0f, -1.0f, 0.0f)
-        );
-        INT index = 0;
-        Vertex3F pointList[10];
-        Vertex3F proj[3];
-        proj[0] = p[0].toPoint4F().product(projection).normalize().toVertex3F();
-        proj[1] = p[1].toPoint4F().product(projection).normalize().toVertex3F();
-        proj[2] = p[2].toPoint4F().product(projection).normalize().toVertex3F();
-        Vertex3F projNorm = crossProduct((proj[1] - proj[0]), (proj[2] - proj[1]));
-        if (projNorm[3] < 0.0f) continue;
-        /* 3条边 */
+        /* View */
+        p[0] = (transform * p[0].toVector4d1()).toVector3d();
+        p[1] = (transform * p[1].toVector4d1()).toVector3d();
+        p[2] = (transform * p[2].toVector4d1()).toVector3d();
+        Math::Vector3d norm = Math::cross(p[1] - p[0], p[2] - p[1]);
+        /* Clip，Projection */
+        Math::Matrix44d projection(WINDOW_WIDTH / std::tan(fovx_ / 180 * PI / 2) / 2.0, 0, -WINDOW_WIDTH / 2.0, 0,
+            0, WINDOW_HEIGHT * aspect_ / tan(fovx_ / 180 * PI / 2) / 2.0, -WINDOW_HEIGHT / 2.0, 0,
+            0, 0, far_ / (far_ - near_), near_ * far_ / (far_ - near_),
+            0, 0, -1, 0);
+        PWint index = 0;
+        Math::Vector3d pointList[10];
+        Math::Vector4d proj[3];
+        Math::Vector3d screen[3];
+        proj[0] = projection * p[0].toVector4d1();
+        proj[1] = projection * p[1].toVector4d1();
+        proj[2] = projection * p[2].toVector4d1();
+        screen[0] = proj[0].normal().toVector3d();
+        screen[1] = proj[1].normal().toVector3d();
+        screen[2] = proj[2].normal().toVector3d();
+        /* Behind Camera */
+        if (proj[0].getZ() > 0 || proj[1].getZ() > 0 || proj[2].getZ() > 0) continue;
+        /* Backface */
+        Math::Vector3d normProj = Math::cross(screen[1] - screen[0], screen[2] - screen[1]);
+        if (normProj.getZ() < 0) continue;
+        /* Face to be clipped */
         for (int edgeIndex = 0; edgeIndex < 3; edgeIndex++)
         {
             int start = edgeIndex;
             int end = (edgeIndex + 1) % 3;
-            if (proj[start][3] > 0.0f)
+            if (screen[start].getZ() > 0.0f)
             {
-                if (proj[end][3] > 0.0f)
+                if (screen[end].getZ() > 0.0f)
                 {
                 }
-                else if (proj[end][3] < -1.0f)
+                else if (screen[end].getZ() < -1.0f)
                 {
-                    FLOAT t = (proj[start][3] - 0.0f) / (proj[start][3] - proj[end][3]);
-                    pointList[index++] = proj[start] + (proj[end] - proj[start]) * t;
-                    t = (proj[start][3] + 1.0f) / (proj[start][3] - proj[end][3]);
-                    pointList[index++] = proj[start] + (proj[end] - proj[start]) * t;
+                    PWdouble t = (screen[start].getZ() - 0.0f) / (screen[start].getZ() - screen[end].getZ());
+                    pointList[index++] = screen[start] + (screen[end] - screen[start]) * t;
+                    t = (screen[start].getZ() + 1.0f) / (screen[start].getZ() - screen[end].getZ());
+                    pointList[index++] = screen[start] + (screen[end] - screen[start]) * t;
                 }
                 else
                 {
-                    FLOAT t = (proj[start][3] - 0.0f) / (proj[start][3] - proj[end][3]);
-                    pointList[index++] = proj[start] + (proj[end] - proj[start]) * t;
+                    PWdouble t = (screen[start].getZ() - 0.0f) / (screen[start].getZ() - screen[end].getZ());
+                    pointList[index++] = screen[start] + (screen[end] - screen[start]) * t;
                 }
             }
-            else if (proj[start][3] < -1.0f)
+            else if (screen[start].getZ() < -1.0f)
             {
-                if (proj[end][3] > 0.0f)
+                if (screen[end].getZ() > 0.0f)
                 {
-                    FLOAT t = (proj[start][3] + 1.0f) / (proj[start][3] - proj[end][3]);
-                    pointList[index++] = proj[start] + (proj[end] - proj[start]) * t;
-                    t = (proj[start][3] - 0.0f) / (proj[start][3] - proj[end][3]);
-                    pointList[index++] = proj[start] + (proj[end] - proj[start]) * t;
+                    PWdouble t = (screen[start].getZ() + 1.0f) / (screen[start].getZ() - screen[end].getZ());
+                    pointList[index++] = screen[start] + (screen[end] - screen[start]) * t;
+                    t = (screen[start].getZ() - 0.0f) / (screen[start].getZ() - screen[end].getZ());
+                    pointList[index++] = screen[start] + (screen[end] - screen[start]) * t;
                 }
-                else if (proj[end][3] < -1.0f)
+                else if (screen[end].getZ() < -1.0f)
                 {
                 }
                 else
                 {
-                    FLOAT t = (proj[start][3] + 1.0f) / (proj[start][3] - proj[end][3]);
-                    pointList[index++] = proj[start] + (proj[end] - proj[start]) * t;
+                    PWdouble t = (screen[start].getZ() + 1.0f) / (screen[start].getZ() - screen[end].getZ());
+                    pointList[index++] = screen[start] + (screen[end] - screen[start]) * t;
                 }
             }
             else {
-                pointList[index++] = proj[start];
-                if (proj[end][3] > 0.0f)
+                pointList[index++] = screen[start];
+                if (screen[end].getZ() > 0.0f)
                 {
-                    FLOAT t = (proj[start][3] - 0.0f) / (proj[start][3] - proj[end][3]);
-                    pointList[index++] = proj[start] + (proj[end] - proj[start]) * t;
+                    PWdouble t = (screen[start].getZ() - 0.0f) / (screen[start].getZ() - screen[end].getZ());
+                    pointList[index++] = screen[start] + (screen[end] - screen[start]) * t;
                 }
-                else if (proj[end][3] < -1.0f)
+                else if (screen[end].getZ() < -1.0f)
                 {
-                    FLOAT t = (proj[start][3] + 1.0f) / (proj[start][3] - proj[end][3]);
-                    pointList[index++] = proj[start] + (proj[end] - proj[start]) * t;
+                    PWdouble t = (screen[start].getZ() + 1.0f) / (screen[start].getZ() - screen[end].getZ());
+                    pointList[index++] = screen[start] + (screen[end] - screen[start]) * t;
                 }
             }
         }
         if (index < 3) continue;
-        /* 光栅化 */
-        /* 裁剪后的每个三角形 */
+        /* Rasterize */
         for (int k = 1; k < index - 1; k++)
         {
-            FLOAT yMax = max(max(pointList[0][2], pointList[k][2]), pointList[k + 1][2]);
-            FLOAT yMin = min(min(pointList[0][2], pointList[k][2]), pointList[k + 1][2]);
-            INT iyMax = static_cast<INT>(yMax);
-            INT iyMin = static_cast<INT>(yMin);
-            FLOAT delta = yMin - static_cast<FLOAT>(iyMin);
-            if (!isAndSetZero(delta))
+            PWdouble yMax = max(max(pointList[0].getY(), pointList[k].getY()), pointList[k + 1].getY());
+            PWdouble yMin = min(min(pointList[0].getY(), pointList[k].getY()), pointList[k + 1].getY());
+            PWint iyMax = static_cast<PWint>(yMax);
+            PWint iyMin = static_cast<PWint>(yMin);
+            PWdouble delta = yMin - static_cast<PWdouble>(iyMin);
+            if (!Math::equal(delta, 0))
             {
                 iyMin++;
             }
             iyMin = max(0, iyMin);
             iyMax = min(WINDOW_HEIGHT - 1, iyMax);
-            /* 扫描每一行 */
-            for (INT row = iyMax; row >= iyMin; row--)
+            /* Each row */
+            for (PWint row = iyMax; row >= iyMin; row--)
             {
-                FLOAT xMin = static_cast<FLOAT>(WINDOW_WIDTH - 1);
-                FLOAT xMax = 0.0f;
-                /* 忽略水平线 */
-                if (pointList[0][2] != pointList[k][2])
+                PWdouble xMin = static_cast<PWdouble>(WINDOW_WIDTH - 1);
+                PWdouble xMax = 0.0f;
+                /* Ignore horizontal line */
+                if (pointList[0].getY() != pointList[k].getY())
                 {
-                    if ((pointList[0][2] - row) * (pointList[k][2] - row) < 0.0f)
+                    if ((pointList[0].getY() - row) * (pointList[k].getY() - row) < 0.0f)
                     {
-                        FLOAT tmpx = (pointList[0][1] - pointList[k][1]) / (pointList[0][2] - pointList[k][2]) * (row - pointList[0][2]) + pointList[0][1];
+                        PWdouble tmpx = (pointList[0].getX() - pointList[k].getX()) / (pointList[0].getY() - pointList[k].getY()) * (row - pointList[0].getY()) + pointList[0].getX();
                         if (tmpx > xMax) xMax = tmpx;
                         if (tmpx < xMin) xMin = tmpx;
                     }
                 }
-                if (pointList[0][2] != pointList[k + 1][2])
+                if (pointList[0].getY() != pointList[k + 1].getY())
                 {
-                    if ((pointList[0][2] - row) * (pointList[k + 1][2] - row) < 0.0f)
+                    if ((pointList[0].getY() - row) * (pointList[k + 1].getY() - row) < 0.0f)
                     {
-                        FLOAT tmpx = (pointList[0][1] - pointList[k + 1][1]) / (pointList[0][2] - pointList[k + 1][2]) * (row - pointList[0][2]) + pointList[0][1];
+                        PWdouble tmpx = (pointList[0].getX() - pointList[k + 1].getX()) / (pointList[0].getY() - pointList[k + 1].getY()) * (row - pointList[0].getY()) + pointList[0].getX();
                         if (tmpx > xMax) xMax = tmpx;
                         if (tmpx < xMin) xMin = tmpx;
                     }
                 }
-                if (pointList[k + 1][2] != pointList[k][2])
+                if (pointList[k + 1].getY() != pointList[k].getY())
                 {
-                    if ((pointList[k][2] - row) * (pointList[k + 1][2] - row) < 0.0f)
+                    if ((pointList[k].getY() - row) * (pointList[k + 1].getY() - row) < 0.0f)
                     {
-                        FLOAT tmpx = (pointList[k + 1][1] - pointList[k][1]) / (pointList[k + 1][2] - pointList[k][2]) * (row - pointList[k + 1][2]) + pointList[k + 1][1];
+                        PWdouble tmpx = (pointList[k + 1].getX() - pointList[k].getX()) / (pointList[k + 1].getY() - pointList[k].getY()) * (row - pointList[k + 1].getY()) + pointList[k + 1].getX();
                         if (tmpx > xMax) xMax = tmpx;
                         if (tmpx < xMin) xMin = tmpx;
                     }
                 }
-                INT ixMin = static_cast<INT>(xMin);
-                INT ixMax = static_cast<INT>(xMax);
+                PWint ixMin = static_cast<PWint>(xMin);
+                PWint ixMax = static_cast<PWint>(xMax);
                 ixMin = max(0, ixMin);
                 ixMax = min(WINDOW_WIDTH - 1, ixMax);
+                /* parallel optimize */
 #pragma omp parallel for
-                for (INT col = ixMin; col <= ixMax; col++)
+                for (PWint col = ixMin; col <= ixMax; col++)
                 {
-                    FLOAT v0 = (col - proj[2][1]) * (proj[1][2] - proj[2][2]) + (row - proj[2][2]) * (proj[2][1] - proj[1][1]);
-                    v0 /= (proj[0][1] - proj[2][1]) * (proj[1][2] - proj[2][2]) + (proj[0][2] - proj[2][2]) * (proj[2][1] - proj[1][1]);
-                    FLOAT v1 = (col - proj[0][1]) * (proj[2][2] - proj[0][2]) + (row - proj[0][2]) * (proj[0][1] - proj[2][1]);
-                    v1 /= (proj[1][1] - proj[0][1]) * (proj[2][2] - proj[0][2]) + (proj[1][2] - proj[0][2]) * (proj[0][1] - proj[2][1]);
-                    FLOAT v2 = 1 - v0 - v1;
-                    FLOAT depth = 1 / (v0 / p[0][3] + v1 / p[1][3] + v2 / p[2][3]);
-                    if (zBuffer_[row * WINDOW_WIDTH + col] > -depth) continue;
-                    zBuffer_[row * WINDOW_WIDTH + col] = -depth;
+                    PWdouble v0 = (col - screen[2].getX()) * (screen[1].getY() - screen[2].getY()) + (row - screen[2].getY()) * (screen[2].getX() - screen[1].getX());
+                    v0 /= (screen[0].getX() - screen[2].getX()) * (screen[1].getY() - screen[2].getY()) + (screen[0].getY() - screen[2].getY()) * (screen[2].getX() - screen[1].getX());
+                    PWdouble v1 = (col - screen[0].getX()) * (screen[2].getY() - screen[0].getY()) + (row - screen[0].getY()) * (screen[0].getX() - screen[2].getX());
+                    v1 /= (screen[1].getX() - screen[0].getX()) * (screen[2].getY() - screen[0].getY()) + (screen[1].getY() - screen[0].getY()) * (screen[0].getX() - screen[2].getX());
+                    PWdouble v2 = 1 - v0 - v1;
+                    PWdouble depthInView = 1 / (v0 / p[0].getZ() + v1 / p[1].getZ() + v2 / p[2].getZ());
+                    PWdouble depthInProj = 1 / (v0 / screen[0].getZ() + v1 / screen[1].getZ() + v2 / screen[2].getZ());
+                    if (zBuffer_[row * WINDOW_WIDTH + col] > depthInProj) continue;
+                    zBuffer_[row * WINDOW_WIDTH + col] = depthInProj;
                     /* Z-fix */
                     {
-                        v0 = v0 * depth / p[0][3];
-                        v1 = v1 * depth / p[1][3];
+                        v0 = v0 * depthInView / p[0].getZ();
+                        v1 = v1 * depthInView / p[1].getZ();
                         v2 = 1 - v0 - v1;
                     }
-                    Vertex3F jiInView = p[0] * v0 + p[1] * v1 + p[2] * v2;
-                    FLOAT uInView = pu[0] * v0 + pu[1] * v1 + pu[2] * v2;
-                    FLOAT vInView = pv[0] * v0 + pv[1] * v1 + pv[2] * v2;
+                    Math::Vector3d jiInView = p[0] * v0 + p[1] * v1 + p[2] * v2;
+                    PWdouble uInView = pu[0] * v0 + pu[1] * v1 + pu[2] * v2;
+                    PWdouble vInView = pv[0] * v0 + pv[1] * v1 + pv[2] * v2;
                     uInView = min(max(uInView, 0), 1);
                     vInView = min(max(vInView, 0), 1);
-                    /* 光照 */
-                    Vertex3F l = (lightInView - jiInView).normalize();
-                    Vertex3F r = norm * 2.0f * l.dotProduct(norm) - l;
-                    Vertex3F v = -jiInView.normalize();
-                    FLOAT vDiff = max(norm.dotProduct(l), 0.0f);
-                    FLOAT vSpec = max(v.dotProduct(r) * v.dotProduct(r) * v.dotProduct(r) * v.dotProduct(r), 0.0f);
-                    FLOAT vAmb = 1.0f;
-                    BYTE* position = (BYTE*)(texture_.bmBits);
-                    position = position + texture_.bmWidthBytes * static_cast<INT>(vInView * (texture_.bmHeight - 1));
-                    position = position + texture_.bmBitsPixel * static_cast<INT>(uInView * (texture_.bmWidth - 1)) / 8;
-                    UINT blue = *position * (vDiff * lightDiffuse_[1] + vSpec * lightSpecular_[1] + vAmb * lightAmbient[1]);
-                    UINT green = *(position + 1) * (vDiff * lightDiffuse_[2] + vSpec * lightSpecular_[2] + vAmb * lightAmbient[2]);
-                    UINT red = *(position + 2) * (vDiff * lightDiffuse_[3] + vSpec * lightSpecular_[3] + vAmb * lightAmbient[3]);
+                    /* Pixel level lighting */
+                    Math::Vector3d l = (lightInView - jiInView).normal();
+                    Math::Vector3d r = norm * 2 * l.dot(norm) - l;
+                    Math::Vector3d v = -jiInView.normal();
+                    PWdouble vDiff = max(norm.dot(l), 0.0f);
+                    PWdouble vSpec = max(v.dot(r) * v.dot(r) * v.dot(r) * v.dot(r), 0.0f);
+                    PWdouble vAmb = 1.0f;
+                    PWbyte* position = (PWbyte *)(texture_.bmBits);
+                    position = position + texture_.bmWidthBytes * static_cast<PWint>(vInView * (texture_.bmHeight - 1));
+                    position = position + texture_.bmBitsPixel * static_cast<PWint>(uInView * (texture_.bmWidth - 1)) / 8;
+                    PWuint blue = static_cast<PWuint>(*position * (vDiff * lightDiffuse_.getX() + vSpec * lightSpecular_.getX() + vAmb * lightAmbient.getX()));
+                    PWuint green = static_cast<PWuint>(*(position + 1) * (vDiff * lightDiffuse_.getY() + vSpec * lightSpecular_.getY() + vAmb * lightAmbient.getY()));
+                    PWuint red = static_cast<PWuint>(*(position + 2) * (vDiff * lightDiffuse_.getZ() + vSpec * lightSpecular_.getZ() + vAmb * lightAmbient.getZ()));
                     bmpBuffer_[row * WINDOW_WIDTH + col] = (red << 16) | (green << 8) | blue;
                 }
             }
         }
-        //TODO
     }
 
     /* Copy buffer */
@@ -408,7 +410,7 @@ HRESULT PWGL::onRender()
     SelectObject(hMemDC_, hBITMAP_);
     BitBlt(hDC_, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, hMemDC_, 0, 0, SRCCOPY);
 
-    /* 计算FPS */
+    /* Count FPS */
     QueryPerformanceCounter(&endTick);
     LARGE_INTEGER delta;
     delta.QuadPart = endTick.QuadPart - startTick.QuadPart;
@@ -456,7 +458,7 @@ LRESULT PWGL::wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             case WM_MOUSEWHEEL:
             {
                 FLOAT zDelta = 1.0f * GET_WHEEL_DELTA_WPARAM(wParam) / 1200;
-                ppwgl->camera_.moveForward(zDelta);
+                //ppwgl->camera_.moveForward(zDelta);
             }
             result = 0;
             wasHandled = true;

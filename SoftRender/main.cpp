@@ -1,10 +1,6 @@
 #include "PWRenderer.hpp"
-//#include "Vertex.h"
-//#include "Matrix.h"
-//#include "Camera.h"
-#include "Math.hpp"
 
-#define TEST
+//#define TEST
 
 #ifndef TEST
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {

@@ -14,29 +14,11 @@
     <ClCompile Include="main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="Vertex.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Matrix.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Camera.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="PWRenderer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Matrix.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="common.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Camera.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="PWRenderer.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -46,7 +28,10 @@
     <ClInclude Include="Math.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="Vertex.h">
+    <ClInclude Include="Camera.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Common.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

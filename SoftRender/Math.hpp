@@ -75,6 +75,10 @@ namespace Math
         void setY(PWdouble v) { m_y_ = v; }
         void setZ(PWdouble v) { m_z_ = v; }
         void set(PWdouble x, PWdouble y, PWdouble z) { m_x_ = x; m_y_ = y; m_z_ = z; }
+
+        /* To Other Types */
+        inline Vector4d toVector4d0() const;
+        inline Vector4d toVector4d1() const;
     private:
         PWdouble m_x_, m_y_, m_z_;
     };
@@ -116,6 +120,9 @@ namespace Math
         void setZ(PWdouble v) { m_z_ = v; }
         void setW(PWdouble v) { m_w_ = v; }
         void set(PWdouble x, PWdouble y, PWdouble z, PWdouble w) { m_x_ = x; m_y_ = y; m_z_ = z; m_w_ = w; }
+
+        /* To Other Types */
+        inline Vector3d toVector3d() const;
     private:
         PWdouble m_x_, m_y_, m_z_, m_w_;
     };
@@ -221,6 +228,7 @@ namespace Math
                 m_data_[12] * r_data_[3] + m_data_[13] * r_data_[7] + m_data_[14] * r_data_[11] + m_data_[15] * r_data_[15]
             };
             memcpy(m_data_, tmp, 16 * sizeof(PWdouble));
+            return *this;
         }
         Vector4d operator*(const Vector4d &rhs) const
         {
@@ -358,6 +366,11 @@ namespace Math
         }
         PWdouble m_data_[16];
     };
+
+    /* Outside inline member function */
+    inline Vector4d Vector3d::toVector4d0() const { return Vector4d(m_x_, m_y_, m_z_, 0); }
+    inline Vector4d Vector3d::toVector4d1() const { return Vector4d(m_x_, m_y_, m_z_, 1); }
+    inline Vector3d Vector4d::toVector3d() const { return Vector3d(m_x_, m_y_, m_z_); }
 
     /* Vector3d outer call */
     inline PWdouble lengthSquare(Vector3d &lhs)

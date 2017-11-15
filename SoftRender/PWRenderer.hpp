@@ -1,10 +1,8 @@
 #pragma once
-#include "common.h"
-#include "Vertex.h"
-#include "Matrix.h"
-#include "Camera.h"
+#include "stdafx.h"
+#include "Camera.hpp"
 
-/* COM组件的释放 */
+/* Release for COM Components */
 template<class Interface>
 inline void SafeRelease(Interface **ppInterfaceToRelease)
 {
@@ -20,7 +18,7 @@ typedef struct __TriangleIndex {
     int p0, p1, p2;
 } TriangleIndex;
 
-/* 当前hInstance */
+/* Current hInstance */
 #ifndef HINST_THISCOMPONENT
 EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 #define HINST_THISCOMPONENT ((HINSTANCE)&__ImageBase)
@@ -57,36 +55,36 @@ private:
     HBITMAP hTexture_ = nullptr;
     BITMAP texture_ = {};
 
-    /* 立方体initDevice里初始化 */
-    FLOAT *zBuffer_;
-    /* 顶点缓存 */
-    Vertex3F vertexBuffer_[8];
-    FLOAT vertexU[8];
-    FLOAT vertexV[8];
-    /* 索引缓存，右手逆时针法向量 */
+    /* Z-Buffer */
+    PWdouble *zBuffer_;
+    /* VertexBuffer, UV */
+    Math::Vector3d vertexBuffer_[8];
+    PWdouble vertexU[8];
+    PWdouble vertexV[8];
+    /* IndexBuffer,Right hand CCW as normal */
     TriangleIndex indexBuffer_[12];
-    /* 世界变换，yzy欧拉角 p世界 = p刚体 * R(gamma) * R(beta) * R(alpha) */
-    FLOAT rotAlpha_;
-    FLOAT rotAlphaV_;
-    FLOAT rotBeta_;
-    FLOAT rotBetaV_;
-    FLOAT rotGamma_;
-    FLOAT rotGammaV_;
-    /* 相机 */
-    Camera camera_;
-    /* 投影 */
-    FLOAT fovx_;
-    FLOAT aspect_;
-    FLOAT near_;
-    FLOAT far_;
-    /* 光源 */
-    Vertex3F lightPos;//点光源位置(世界坐标)
-    Vertex3F lightDiffuse_;//漫反射光颜色(R, G, B)
-    Vertex3F lightSpecular_;//镜面反射光颜色(R, G, B)
-    Vertex3F lightAmbient;//环境光颜色(R, G, B)
-    FLOAT range_;//最大光程
+    /* yzy Euler angle: p_world = R(alpha) * R(beta) * R(gamma) * p_model */
+    PWdouble rotAlpha_;
+    PWdouble rotAlphaV_;
+    PWdouble rotBeta_;
+    PWdouble rotBetaV_;
+    PWdouble rotGamma_;
+    PWdouble rotGammaV_;
+    /* World-View Matrix */
+    Math::Matrix44d camera_;
+    /* Projection parameters */
+    PWdouble fovx_;
+    PWdouble aspect_;
+    PWdouble near_;
+    PWdouble far_;
+    /* Light parameters */
+    Math::Vector3d lightPos;//Position in world
+    Math::Vector3d lightDiffuse_;//Diffuse color (R, G, B)
+    Math::Vector3d lightSpecular_;//Specular color (R, G, B)
+    Math::Vector3d lightAmbient;//Ambient color (R, G, B)
+    PWdouble range_;// Light range
 
-    /* 计算FPS */
+    /* FPS counter */
     LARGE_INTEGER frequency_ = {};
     FLOAT fps_ = 60.0f;
 };
