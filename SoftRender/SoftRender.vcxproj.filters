@@ -17,6 +17,12 @@
     <ClCompile Include="PWRenderer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="glm.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="ObjReader.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="PWRenderer.hpp">
@@ -32,6 +38,12 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="Common.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="glm.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ObjReader.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

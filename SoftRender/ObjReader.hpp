@@ -1,0 +1,62 @@
+#pragma once
+#include <string>
+#include <vector>
+#include "Math.hpp"
+
+namespace FileReader
+{
+    struct ObjMaterial
+    {
+        std::string m_name;
+        PWdouble m_ambient[4];
+        PWdouble m_diffuse[4];
+        PWdouble m_specular[4];
+        PWdouble m_emmissive[4];
+        PWdouble m_shine;
+    };
+
+    struct ObjTriangle
+    {
+        PWint m_vertexIndex[3];
+        PWint m_normalIndex[3];
+        PWint m_texcoordIndex[3];
+        PWint m_faceNormalIndex;
+    };
+
+    struct ObjGroup
+    {
+        std::string m_name;
+        std::vector<PWint> m_triangleIndices;
+        PWint m_materialIndex;
+        ObjGroup *m_next;
+    };
+
+    class ObjModel
+    {
+    public:
+        void clear()
+        {
+            m_path.clear();
+            //m_matname.clear();
+            m_vertices.clear();
+            m_normals.clear();
+            m_texcoords.clear();
+            //m_facetnorms.clear();
+            m_triangles.clear();
+            m_materials.clear();
+            m_groups.clear();
+        }
+        PWbool readObj(const std::string &path);
+        PWbool writeObj(const std::string &path, PWint mode);
+
+        std::string m_path;
+        //std::string m_matname;
+        std::vector<Math::Vector3d> m_vertices;
+        std::vector<Math::Vector3d> m_normals;
+        std::vector<Math::Vector2d> m_texcoords;
+        //std::vector<PWdouble> m_facetnorms;
+        std::vector<ObjTriangle> m_triangles;
+        std::vector<ObjMaterial> m_materials;
+        std::vector<ObjGroup> m_groups;
+    };
+}

@@ -29,9 +29,48 @@ namespace Math
         return std::fabs(x - y) < EPSILON;
     }
 
+    class Vector2d;
     class Vector3d;
     class Vector4d;
     class Matrix44d;
+
+    class Vector2d
+    {
+    public:
+        Vector2d() :m_x_(0), m_y_(0) {}
+        Vector2d(PWdouble x, PWdouble y) :m_x_(x), m_y_(y) {}
+
+        /* Arithmetic */
+        Vector2d operator- () const { return Vector2d(-m_x_, -m_y_); }
+        Vector2d operator+ (const Vector2d &rhs) const { return Vector2d(m_x_ + rhs.m_x_, m_y_ + rhs.m_y_); }
+        Vector2d &operator+= (const Vector2d &rhs) { m_x_ += rhs.m_x_; m_y_ += rhs.m_y_; return *this; }
+        Vector2d operator- (const Vector2d &rhs) const { return Vector2d(m_x_ - rhs.m_x_, m_y_ - rhs.m_y_); }
+        Vector2d &operator-= (const Vector2d &rhs) { m_x_ -= rhs.m_x_; m_y_ -= rhs.m_y_; return *this; }
+        Vector2d operator* (PWdouble a) const { return Vector2d(m_x_ * a, m_y_ * a); }
+        Vector2d &operator*= (PWdouble a) { m_x_ *= a; m_y_ *= a; return *this; }
+        Vector2d operator/ (PWdouble a) const { return Vector2d(m_x_ / a, m_y_ / a); }
+        Vector2d &operator/= (PWdouble a) { m_x_ /= a; m_y_ /= a; return *this; }
+
+        /* Logic */
+        PWbool operator== (const Vector2d &rhs) { return equal(m_x_, rhs.m_x_) && equal(m_y_, rhs.m_y_); }
+        PWbool operator!= (const Vector2d &rhs) { return !operator==(rhs); }
+
+        /* Vector */
+        PWdouble lengthSquare() const { return m_x_ * m_x_ + m_y_ * m_y_; }
+        PWdouble length() const { return std::sqrt(lengthSquare()); }
+        Vector2d normal() const { return *this / std::fmax(length(), DBL_MIN); }
+        PWdouble dot(const Vector2d &rhs) const { return m_x_ * rhs.m_x_ + m_y_*rhs.m_y_; }
+        void normalize() { *this /= std::fmax(length(), DBL_MIN); }
+
+        /* getter/setter */
+        PWdouble getX() const { return m_x_; }
+        PWdouble getY() const { return m_y_; }
+        void setX(PWdouble v) { m_x_ = v; }
+        void setY(PWdouble v) { m_y_ = v; }
+        void set(PWdouble x, PWdouble y) { m_x_ = x; m_y_ = y; }
+    private:
+        PWdouble m_x_, m_y_;
+    };
 
     class Vector3d
     {
