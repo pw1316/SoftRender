@@ -1,4 +1,6 @@
 #pragma once
+#include <exception>
+#include <map>
 #include <string>
 #include <vector>
 #include "Math.hpp"
@@ -25,10 +27,8 @@ namespace FileReader
 
     struct ObjGroup
     {
-        std::string m_name;
         std::vector<PWint> m_triangleIndices;
         PWint m_materialIndex;
-        ObjGroup *m_next;
     };
 
     class ObjModel
@@ -57,6 +57,28 @@ namespace FileReader
         //std::vector<PWdouble> m_facetnorms;
         std::vector<ObjTriangle> m_triangles;
         std::vector<ObjMaterial> m_materials;
-        std::vector<ObjGroup> m_groups;
+        std::map<std::string, ObjGroup> m_groups;
+    private:
+        PWint findMaterial(const std::string &name)
+        {
+            for (size_t idx = 0; idx < m_materials.size(); ++idx)
+            {
+                if (m_materials[idx].m_name == name)
+                {
+                    return static_cast<PWint>(idx);
+                }
+            }
+            throw std::out_of_range("No Such Material");
+        }
+        std::map<std::string, ObjGroup>::iterator findAndAddGroup(const std::string &name)
+        {
+            std::map<std::string, ObjGroup>::iterator it = m_groups.find(name);
+            if (it == m_groups.end())
+            {
+                m_groups[name] = ObjGroup();
+                it = m_groups.find(name);
+            }
+            return it;
+        }
     };
 }
