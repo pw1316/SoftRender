@@ -119,7 +119,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="glm.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="ObjReader.cpp" />
     <ClCompile Include="PWRenderer.cpp" />
@@ -127,7 +126,6 @@
   <ItemGroup>
     <ClInclude Include="Camera.hpp" />
     <ClInclude Include="Common.hpp" />
-    <ClInclude Include="glm.h" />
     <ClInclude Include="Math.hpp" />
     <ClInclude Include="ObjReader.hpp" />
     <ClInclude Include="PWRenderer.hpp" />

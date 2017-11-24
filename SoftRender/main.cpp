@@ -23,11 +23,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     return 0;
 }
 #else
+#include <iostream>
+#include <string>
+#include <sstream>
+#include "ObjReader.hpp"
 int main() {
-    Math::Vector4d v1(1, 2, 3, 2);
-    Math::Vector4d v2 = v1.normal();
-    Math::Vector4d v3(1, 2, 3, 0);
-    Math::Vector4d v4 = v3.normal();
-    v4.setW(111);
+    FileReader::ObjModel model;
+    model.readObj("test.obj");
 }
 #endif

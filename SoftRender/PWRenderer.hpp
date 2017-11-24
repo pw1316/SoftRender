@@ -1,6 +1,7 @@
 #pragma once
 #include "stdafx.h"
 #include "Camera.hpp"
+#include "ObjReader.hpp"
 
 /* Release for COM Components */
 template<class Interface>
@@ -57,12 +58,8 @@ private:
 
     /* Z-Buffer */
     PWdouble *zBuffer_;
-    /* VertexBuffer, UV */
-    Math::Vector3d vertexBuffer_[8];
-    PWdouble vertexU[8];
-    PWdouble vertexV[8];
-    /* IndexBuffer,Right hand CCW as normal */
-    TriangleIndex indexBuffer_[12];
+    /* Obj Model */
+    FileReader::ObjModel *p_model_ = nullptr;
     /* yzy Euler angle: p_world = R(alpha) * R(beta) * R(gamma) * p_model */
     PWdouble rotAlpha_;
     PWdouble rotAlphaV_;
