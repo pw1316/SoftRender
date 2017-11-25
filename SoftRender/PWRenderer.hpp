@@ -2,6 +2,7 @@
 #include "stdafx.h"
 #include "Camera.hpp"
 #include "ObjReader.hpp"
+#include "IntervalScanLine.hpp"
 
 /* Release for COM Components */
 template<class Interface>
@@ -56,8 +57,11 @@ private:
     HBITMAP hTexture_ = nullptr;
     BITMAP texture_ = {};
 
-    /* Z-Buffer */
-    PWdouble *zBuffer_;
+    /* Interval Scan Line Z */
+    PolygonTable pt_;
+    InPolygonTable ipl_;
+    EdgeTable et_;
+    ActiveEdgeTable aet_;
     /* Obj Model */
     FileReader::ObjModel *p_model_ = nullptr;
     /* yzy Euler angle: p_world = R(alpha) * R(beta) * R(gamma) * p_model */

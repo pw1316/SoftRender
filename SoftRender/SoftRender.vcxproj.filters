@@ -40,5 +40,8 @@
     <ClInclude Include="ObjReader.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="IntervalScanLine.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

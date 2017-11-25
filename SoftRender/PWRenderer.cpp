@@ -100,7 +100,6 @@ HRESULT PWGL::initDevice()
     hTexture_ = (HBITMAP)::LoadImage(HINST_THISCOMPONENT, "Texture.bmp", IMAGE_BITMAP, 0, 0, LR_DEFAULTCOLOR | LR_CREATEDIBSECTION | LR_LOADFROMFILE);
     GetObject(hTexture_, sizeof(BITMAP), &texture_);
 #pragma endregion
-    zBuffer_ = new PWdouble[WINDOW_WIDTH * WINDOW_HEIGHT];
     p_model_ = new FileReader::ObjModel();
     p_model_->readObj("obj.model");
     /* Model-World parameters */
@@ -161,8 +160,11 @@ HRESULT PWGL::onRender()
     for (int i = 0; i < WINDOW_WIDTH * WINDOW_HEIGHT; i++)
     {
         bmpBuffer_[i] = 0x00D7C4BB;
-        zBuffer_[i] = -1;
     }
+    pt_.clear();
+    ipl_.clear();
+    et_.clear();
+    aet_.clear();
 
     Math::Matrix44d transform;
     transform.setRotate(0.0f, 1.0f, 0.0f, rotGamma_ / 180.0f * PI);
@@ -200,7 +202,7 @@ HRESULT PWGL::onRender()
             p[1] = (transform * p[1].toVector4d1()).toVector3d();
             p[2] = (transform * p[2].toVector4d1()).toVector3d();
             Math::Vector3d norm = Math::cross(p[1] - p[0], p[2] - p[1]);
-            /* Clip��Projection */
+            /* Clip and Projection */
             Math::Matrix44d projection(WINDOW_WIDTH / std::tan(fovx_ / 180 * PI / 2) / 2.0, 0, -WINDOW_WIDTH / 2.0, 0,
                 0, WINDOW_HEIGHT * aspect_ / tan(fovx_ / 180 * PI / 2) / 2.0, -WINDOW_HEIGHT / 2.0, 0,
                 0, 0, far_ / (far_ - near_), near_ * far_ / (far_ - near_),
@@ -277,97 +279,56 @@ HRESULT PWGL::onRender()
             }
             if (index < 3) continue;
             /* Rasterize */
-            for (int k = 1; k < index - 1; k++)
+            pt_.emplace_back();
+            auto &poly = pt_.back();
+            PWbyte* textureBuffer = (PWbyte *)(texture_.bmBits);
+            poly.m_id = pt_.size() - 1;
+            poly.m_a = norm.getX();
+            poly.m_b = norm.getY();
+            poly.m_c = norm.getZ();
+            poly.m_d = -(poly.m_a * p[1].getX() + poly.m_b * p[1].getY() + poly.m_c * p[1].getZ());
+            PWuint blue = textureBuffer[texture_.bmWidthBytes * static_cast<PWint>(uv[0].getY() * (texture_.bmHeight - 1)) + \
+                texture_.bmBitsPixel * static_cast<PWint>(uv[0].getX() * (texture_.bmWidth - 1)) / 8];
+            blue += textureBuffer[texture_.bmWidthBytes * static_cast<PWint>(uv[1].getY() * (texture_.bmHeight - 1)) + \
+                texture_.bmBitsPixel * static_cast<PWint>(uv[1].getX() * (texture_.bmWidth - 1)) / 8];
+            blue += textureBuffer[texture_.bmWidthBytes * static_cast<PWint>(uv[2].getY() * (texture_.bmHeight - 1)) + \
+                texture_.bmBitsPixel * static_cast<PWint>(uv[2].getX() * (texture_.bmWidth - 1)) / 8];
+            blue /= 3;
+            PWuint green = textureBuffer[texture_.bmWidthBytes * static_cast<PWint>(uv[0].getY() * (texture_.bmHeight - 1)) + \
+                texture_.bmBitsPixel * static_cast<PWint>(uv[0].getX() * (texture_.bmWidth - 1)) / 8 + 1];
+            blue += textureBuffer[texture_.bmWidthBytes * static_cast<PWint>(uv[1].getY() * (texture_.bmHeight - 1)) + \
+                texture_.bmBitsPixel * static_cast<PWint>(uv[1].getX() * (texture_.bmWidth - 1)) / 8 + 1];
+            blue += textureBuffer[texture_.bmWidthBytes * static_cast<PWint>(uv[2].getY() * (texture_.bmHeight - 1)) + \
+                texture_.bmBitsPixel * static_cast<PWint>(uv[2].getX() * (texture_.bmWidth - 1)) / 8 + 1];
+            blue /= 3;
+            PWuint red = textureBuffer[texture_.bmWidthBytes * static_cast<PWint>(uv[0].getY() * (texture_.bmHeight - 1)) + \
+                texture_.bmBitsPixel * static_cast<PWint>(uv[0].getX() * (texture_.bmWidth - 1)) / 8 + 2];
+            blue += textureBuffer[texture_.bmWidthBytes * static_cast<PWint>(uv[1].getY() * (texture_.bmHeight - 1)) + \
+                texture_.bmBitsPixel * static_cast<PWint>(uv[1].getX() * (texture_.bmWidth - 1)) / 8 + 2];
+            blue += textureBuffer[texture_.bmWidthBytes * static_cast<PWint>(uv[2].getY() * (texture_.bmHeight - 1)) + \
+                texture_.bmBitsPixel * static_cast<PWint>(uv[2].getX() * (texture_.bmWidth - 1)) / 8 + 2];
+            blue /= 3;
+            poly.m_color = Math::Vector3d(blue, green, red);
+            poly.m_isIn = false;
+            for (int k = 0; k < index - 1; k++)
             {
-                PWdouble yMax = max(max(pointList[0].getY(), pointList[k].getY()), pointList[k + 1].getY());
-                PWdouble yMin = min(min(pointList[0].getY(), pointList[k].getY()), pointList[k + 1].getY());
-                PWint iyMax = static_cast<PWint>(yMax);
-                PWint iyMin = static_cast<PWint>(yMin);
-                PWdouble delta = yMin - static_cast<PWdouble>(iyMin);
-                if (!Math::equal(delta, 0))
+                PWint x0 = (PWint)pointList[k].getX();
+                PWint x1 = (PWint)pointList[k].getY();
+                PWint y0 = (PWint)pointList[k + 1].getX();
+                PWint y1 = (PWint)pointList[k + 1].getY();
+                /* Ignore horizontal line */
+                if (y0 == y1)
                 {
-                    iyMin++;
+                    continue;
                 }
-                iyMin = max(0, iyMin);
-                iyMax = min(WINDOW_HEIGHT - 1, iyMax);
-                /* Each row */
-                for (PWint row = iyMax; row >= iyMin; row--)
-                {
-                    PWdouble xMin = static_cast<PWdouble>(WINDOW_WIDTH - 1);
-                    PWdouble xMax = 0.0f;
-                    /* Ignore horizontal line */
-                    if (pointList[0].getY() != pointList[k].getY())
-                    {
-                        if ((pointList[0].getY() - row) * (pointList[k].getY() - row) < 0.0f)
-                        {
-                            PWdouble tmpx = (pointList[0].getX() - pointList[k].getX()) / (pointList[0].getY() - pointList[k].getY()) * (row - pointList[0].getY()) + pointList[0].getX();
-                            if (tmpx > xMax) xMax = tmpx;
-                            if (tmpx < xMin) xMin = tmpx;
-                        }
-                    }
-                    if (pointList[0].getY() != pointList[k + 1].getY())
-                    {
-                        if ((pointList[0].getY() - row) * (pointList[k + 1].getY() - row) < 0.0f)
-                        {
-                            PWdouble tmpx = (pointList[0].getX() - pointList[k + 1].getX()) / (pointList[0].getY() - pointList[k + 1].getY()) * (row - pointList[0].getY()) + pointList[0].getX();
-                            if (tmpx > xMax) xMax = tmpx;
-                            if (tmpx < xMin) xMin = tmpx;
-                        }
-                    }
-                    if (pointList[k + 1].getY() != pointList[k].getY())
-                    {
-                        if ((pointList[k].getY() - row) * (pointList[k + 1].getY() - row) < 0.0f)
-                        {
-                            PWdouble tmpx = (pointList[k + 1].getX() - pointList[k].getX()) / (pointList[k + 1].getY() - pointList[k].getY()) * (row - pointList[k + 1].getY()) + pointList[k + 1].getX();
-                            if (tmpx > xMax) xMax = tmpx;
-                            if (tmpx < xMin) xMin = tmpx;
-                        }
-                    }
-                    PWint ixMin = static_cast<PWint>(xMin);
-                    PWint ixMax = static_cast<PWint>(xMax);
-                    ixMin = max(0, ixMin);
-                    ixMax = min(WINDOW_WIDTH - 1, ixMax);
-                    /* parallel optimize */
-#pragma omp parallel for
-                    for (PWint col = ixMin; col <= ixMax; col++)
-                    {
-                        PWdouble v0 = (col - screen[2].getX()) * (screen[1].getY() - screen[2].getY()) + (row - screen[2].getY()) * (screen[2].getX() - screen[1].getX());
-                        v0 /= (screen[0].getX() - screen[2].getX()) * (screen[1].getY() - screen[2].getY()) + (screen[0].getY() - screen[2].getY()) * (screen[2].getX() - screen[1].getX());
-                        PWdouble v1 = (col - screen[0].getX()) * (screen[2].getY() - screen[0].getY()) + (row - screen[0].getY()) * (screen[0].getX() - screen[2].getX());
-                        v1 /= (screen[1].getX() - screen[0].getX()) * (screen[2].getY() - screen[0].getY()) + (screen[1].getY() - screen[0].getY()) * (screen[0].getX() - screen[2].getX());
-                        PWdouble v2 = 1 - v0 - v1;
-                        PWdouble depthInView = 1 / (v0 / p[0].getZ() + v1 / p[1].getZ() + v2 / p[2].getZ());
-                        PWdouble depthInProj = 1 / (v0 / screen[0].getZ() + v1 / screen[1].getZ() + v2 / screen[2].getZ());
-                        if (zBuffer_[row * WINDOW_WIDTH + col] > depthInProj) continue;
-                        zBuffer_[row * WINDOW_WIDTH + col] = depthInProj;
-                        /* Z-fix */
-                        {
-                            v0 = v0 * depthInView / p[0].getZ();
-                            v1 = v1 * depthInView / p[1].getZ();
-                            v2 = 1 - v0 - v1;
-                        }
-                        Math::Vector3d jiInView = p[0] * v0 + p[1] * v1 + p[2] * v2;
-                        PWdouble uInView = uv[0].getX() * v0 + uv[1].getX() * v1 + uv[2].getX() * v2;
-                        PWdouble vInView = uv[0].getY() * v0 + uv[1].getY() * v1 + uv[2].getY() * v2;
-                        uInView = min(max(uInView, 0), 1);
-                        vInView = min(max(vInView, 0), 1);
-                        /* Pixel level lighting */
-                        Math::Vector3d l = (lightInView - jiInView).normal();
-                        Math::Vector3d r = norm * 2 * l.dot(norm) - l;
-                        Math::Vector3d v = -jiInView.normal();
-                        PWdouble vDiff = max(norm.dot(l), 0.0f);
-                        PWdouble vSpec = max(v.dot(r) * v.dot(r) * v.dot(r) * v.dot(r), 0.0f);
-                        PWdouble vAmb = 1.0f;
-                        PWbyte* position = (PWbyte *)(texture_.bmBits);
-                        position = position + texture_.bmWidthBytes * static_cast<PWint>(vInView * (texture_.bmHeight - 1));
-                        position = position + texture_.bmBitsPixel * static_cast<PWint>(uInView * (texture_.bmWidth - 1)) / 8;
-                        PWuint blue = static_cast<PWuint>(*position * (vDiff * lightDiffuse_.getX() + vSpec * lightSpecular_.getX() + vAmb * lightAmbient.getX()));
-                        PWuint green = static_cast<PWuint>(*(position + 1) * (vDiff * lightDiffuse_.getY() + vSpec * lightSpecular_.getY() + vAmb * lightAmbient.getY()));
-                        PWuint red = static_cast<PWuint>(*(position + 2) * (vDiff * lightDiffuse_.getZ() + vSpec * lightSpecular_.getZ() + vAmb * lightAmbient.getZ()));
-                        bmpBuffer_[row * WINDOW_WIDTH + col] = (red << 16) | (green << 8) | blue;
-                    }
-                }
+                et_.emplace_back();
+                auto &edge = et_.back();
+                edge.m_polygonId = poly.m_id;
+                edge.m_ymax = max(y0, y1);
+                edge.m_x = (y0 < y1) ? x0 : x1;
+                edge.m_dx = 1.0 * (x1 - x0) / (y1 - y0);
             }
+            /* Fix non-local-extremum */
         }
     }
 
