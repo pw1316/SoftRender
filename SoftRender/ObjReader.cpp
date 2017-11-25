@@ -16,7 +16,7 @@ PWbool FileReader::ObjModel::readObj(const std::string &path)
     }
     m_path = path;
     std::map<std::string, ObjGroup>::iterator it_group = findAndAddGroup("default");
-    PWint materialIndex = -1;
+    PWint materialIndex = 0;
 
     std::string token;
     std::string line;

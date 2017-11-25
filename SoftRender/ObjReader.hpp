@@ -39,11 +39,17 @@ namespace FileReader
             m_path.clear();
             //m_matname.clear();
             m_vertices.clear();
+            m_vertices.emplace_back(0, 0, 0);
             m_normals.clear();
+            m_normals.emplace_back(0, 0, 0);
             m_texcoords.clear();
+            m_texcoords.emplace_back(0, 0);
             //m_facetnorms.clear();
+            //m_facetnorms.emplace_pack();
             m_triangles.clear();
+            m_triangles.emplace_back();
             m_materials.clear();
+            m_materials.emplace_back();
             m_groups.clear();
         }
         PWbool readObj(const std::string &path);
