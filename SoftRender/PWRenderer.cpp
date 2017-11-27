@@ -279,6 +279,7 @@ HRESULT PWGL::onRender()
             }
             if (index < 3) continue;
             /* Rasterize */
+            /* 1. Add the Clipped polygon */
             pt_.emplace_back();
             auto &poly = pt_.back();
             PWbyte* textureBuffer = (PWbyte *)(texture_.bmBits);
@@ -310,6 +311,9 @@ HRESULT PWGL::onRender()
             blue /= 3;
             poly.m_color = Math::Vector3d(blue, green, red);
             poly.m_isIn = false;
+            /* 2. Add all of the edges of the polygon into the ET */
+            //TODO
+            auto startETIndex = --(et_.end());
             for (int k = 0; k < index - 1; k++)
             {
                 PWint x0 = (PWint)pointList[k].getX();
@@ -325,10 +329,59 @@ HRESULT PWGL::onRender()
                 auto &edge = et_.back();
                 edge.m_polygonId = poly.m_id;
                 edge.m_ymax = max(y0, y1);
-                edge.m_x = (y0 < y1) ? x0 : x1;
+                PWint lowx = (y0 < y1) ? x0 : x1;
+                PWint lowy = (y0 < y1) ? y0 : y1;
+                edge.m_x = lowx;
+                edge.m_y = lowy;
+                PWdouble v0 = (lowx - screen[2].getX()) * (screen[1].getY() - screen[2].getY()) + (lowy - screen[2].getY()) * (screen[2].getX() - screen[1].getX());
+                v0 /= (screen[0].getX() - screen[2].getX()) * (screen[1].getY() - screen[2].getY()) + (screen[0].getY() - screen[2].getY()) * (screen[2].getX() - screen[1].getX());
+                PWdouble v1 = (lowx - screen[0].getX()) * (screen[2].getY() - screen[0].getY()) + (lowy - screen[0].getY()) * (screen[0].getX() - screen[2].getX());
+                v1 /= (screen[1].getX() - screen[0].getX()) * (screen[2].getY() - screen[0].getY()) + (screen[1].getY() - screen[0].getY()) * (screen[0].getX() - screen[2].getX());
+                PWdouble v2 = 1 - v0 - v1;
+                edge.m_z = 1 / (v0 / screen[0].getZ() + v1 / screen[1].getZ() + v2 / screen[2].getZ());
                 edge.m_dx = 1.0 * (x1 - x0) / (y1 - y0);
+                edge.m_dy = 1;
+                edge.m_dz = (pointList[k + 1].getZ() - pointList[k].getZ()) / (y1 - y0);
             }
-            /* Fix non-local-extremum */
+            /* 3. Fix non-local-extremum */
+            /*   First Edge */
+            {
+                auto &prevEdge = et_.back();
+                auto &edge = *(++startETIndex);
+                auto &nextEdge = *std::next(startETIndex);
+                if (Math::equal(nextEdge.m_ymax, edge.m_y) || Math::equal(prevEdge.m_ymax, edge.m_y))
+                {
+                    edge.m_x += edge.m_dx;
+                    edge.m_y += edge.m_dy;
+                    edge.m_z += edge.m_dz;
+                }
+            }
+            /* Internal Edge */
+            auto ETindex = startETIndex;
+            for (++ETindex; ETindex != std::prev(et_.end()); ++ETindex)
+            {
+                auto &prevEdge = *std::prev(ETindex);
+                auto &edge = *ETindex;
+                auto &nextEdge = *std::next(ETindex);
+                if (Math::equal(nextEdge.m_ymax, edge.m_y) || Math::equal(prevEdge.m_ymax, edge.m_y))
+                {
+                    edge.m_x += edge.m_dx;
+                    edge.m_y += edge.m_dy;
+                    edge.m_z += edge.m_dz;
+                }
+            }
+            /* Last Edge */
+            {
+                auto &prevEdge = *std::prev(ETindex);
+                auto &edge = *ETindex;
+                auto &nextEdge = *std::next(startETIndex);
+                if (Math::equal(nextEdge.m_ymax, edge.m_y) || Math::equal(prevEdge.m_ymax, edge.m_y))
+                {
+                    edge.m_x += edge.m_dx;
+                    edge.m_y += edge.m_dy;
+                    edge.m_z += edge.m_dz;
+                }
+            }
         }
     }
 

@@ -9,8 +9,12 @@
 struct EdgeNode
 {
     PWdouble m_x;
+    PWdouble m_y;
+    PWdouble m_z;
     PWdouble m_ymax;
     PWdouble m_dx;
+    PWdouble m_dy;
+    PWdouble m_dz;
     PWint m_polygonId;
 };
 

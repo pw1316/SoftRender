@@ -23,16 +23,53 @@ Transform is Left Product
 namespace Math
 {
     const PWdouble EPSILON = 1e-7;
-
+    
     inline PWbool equal(PWdouble x, PWdouble y)
     {
         return std::fabs(x - y) < EPSILON;
     }
 
+    class Vector2i;
     class Vector2d;
     class Vector3d;
     class Vector4d;
     class Matrix44d;
+
+    class Vector2i
+    {
+    public:
+        Vector2i() :m_x_(0), m_y_(0) {}
+        Vector2i(PWint x, PWint y) :m_x_(x), m_y_(y) {}
+
+        /* Arithmetic */
+        Vector2i operator- () const { return Vector2i(-m_x_, -m_y_); }
+        Vector2i operator+ (const Vector2i &rhs) const { return Vector2i(m_x_ + rhs.m_x_, m_y_ + rhs.m_y_); }
+        Vector2i &operator+= (const Vector2i &rhs) { m_x_ += rhs.m_x_; m_y_ += rhs.m_y_; return *this; }
+        Vector2i operator- (const Vector2i &rhs) const { return Vector2i(m_x_ - rhs.m_x_, m_y_ - rhs.m_y_); }
+        Vector2i &operator-= (const Vector2i &rhs) { m_x_ -= rhs.m_x_; m_y_ -= rhs.m_y_; return *this; }
+        Vector2i operator* (PWint a) const { return Vector2i(m_x_ * a, m_y_ * a); }
+        Vector2i &operator*= (PWint a) { m_x_ *= a; m_y_ *= a; return *this; }
+        Vector2i operator/ (PWint a) const { return Vector2i(m_x_ / a, m_y_ / a); }
+        Vector2i &operator/= (PWint a) { m_x_ /= a; m_y_ /= a; return *this; }
+
+        /* Logic */
+        PWbool operator== (const Vector2i &rhs) { return (m_x_ == rhs.m_x_) && (m_y_ == rhs.m_y_); }
+        PWbool operator!= (const Vector2i &rhs) { return !operator==(rhs); }
+
+        /* Vector */
+        PWint lengthSquare() const { return m_x_ * m_x_ + m_y_ * m_y_; }
+        PWdouble length() const { return std::sqrt(lengthSquare()); }
+        PWdouble dot(const Vector2i &rhs) const { return m_x_ * rhs.m_x_ + m_y_*rhs.m_y_; }
+
+        /* getter/setter */
+        PWint getX() const { return m_x_; }
+        PWint getY() const { return m_y_; }
+        void setX(PWint v) { m_x_ = v; }
+        void setY(PWint v) { m_y_ = v; }
+        void set(PWint x, PWint y) { m_x_ = x; m_y_ = y; }
+    private:
+        PWint m_x_, m_y_;
+    };
 
     class Vector2d
     {
