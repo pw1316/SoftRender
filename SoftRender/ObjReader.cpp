@@ -4,7 +4,6 @@
 #include <iostream>
 #include <sstream>
 
-/* TODO: index starts from 1 */
 PWbool FileReader::ObjModel::readObj(const std::string &path)
 {
     clear();
