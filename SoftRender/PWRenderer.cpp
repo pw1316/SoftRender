@@ -1,5 +1,6 @@
 #include "PWRenderer.hpp"
 
+#include <algorithm>
 #include <cstdio>
 #include <omp.h>
 
@@ -103,7 +104,7 @@ HRESULT PWGL::initDevice()
     p_model_ = new FileReader::ObjModel();
     p_model_->readObj("obj.model");
     /* Model-World parameters */
-    rotAlpha_ = 0.0f;
+    rotAlpha_ = 45.0f;
     rotAlphaV_ = 0.0f;
     rotBeta_ = 0.0f;
     rotBetaV_ = 0.0f;
@@ -284,10 +285,10 @@ HRESULT PWGL::onRender()
             auto &poly = pt_.back();
             PWbyte* textureBuffer = (PWbyte *)(texture_.bmBits);
             poly.m_id = pt_.size() - 1;
-            poly.m_a = norm.getX();
-            poly.m_b = norm.getY();
-            poly.m_c = norm.getZ();
-            poly.m_d = -(poly.m_a * p[1].getX() + poly.m_b * p[1].getY() + poly.m_c * p[1].getZ());
+            poly.m_a = normProj.getX();
+            poly.m_b = normProj.getY();
+            poly.m_c = normProj.getZ();
+            poly.m_d = -(poly.m_a * screen[1].getX() + poly.m_b * screen[1].getY() + poly.m_c * screen[1].getZ());
             PWuint blue = textureBuffer[texture_.bmWidthBytes * static_cast<PWint>(uv[0].getY() * (texture_.bmHeight - 1)) + \
                 texture_.bmBitsPixel * static_cast<PWint>(uv[0].getX() * (texture_.bmWidth - 1)) / 8];
             blue += textureBuffer[texture_.bmWidthBytes * static_cast<PWint>(uv[1].getY() * (texture_.bmHeight - 1)) + \
@@ -312,14 +313,13 @@ HRESULT PWGL::onRender()
             poly.m_color = Math::Vector3d(blue, green, red);
             poly.m_isIn = false;
             /* 2. Add all of the edges of the polygon into the ET */
-            //TODO
-            auto startETIndex = --(et_.end());
-            for (int k = 0; k < index - 1; k++)
+            PWint startETIndex = et_.size();
+            for (int k = 0; k < index; k++)
             {
                 PWint x0 = (PWint)pointList[k].getX();
-                PWint x1 = (PWint)pointList[k].getY();
-                PWint y0 = (PWint)pointList[k + 1].getX();
-                PWint y1 = (PWint)pointList[k + 1].getY();
+                PWint y0 = (PWint)pointList[k].getY();
+                PWint x1 = (PWint)pointList[(k + 1) % index].getX();
+                PWint y1 = (PWint)pointList[(k + 1) % index].getY();
                 /* Ignore horizontal line */
                 if (y0 == y1)
                 {
@@ -347,8 +347,8 @@ HRESULT PWGL::onRender()
             /*   First Edge */
             {
                 auto &prevEdge = et_.back();
-                auto &edge = *(++startETIndex);
-                auto &nextEdge = *std::next(startETIndex);
+                auto &edge = *(std::next(et_.begin(), startETIndex));
+                auto &nextEdge = *(std::next(et_.begin(), startETIndex + 1));
                 if (Math::equal(nextEdge.m_ymax, edge.m_y) || Math::equal(prevEdge.m_ymax, edge.m_y))
                 {
                     edge.m_x += edge.m_dx;
@@ -358,11 +358,11 @@ HRESULT PWGL::onRender()
             }
             /* Internal Edge */
             auto ETindex = startETIndex;
-            for (++ETindex; ETindex != std::prev(et_.end()); ++ETindex)
+            for (++ETindex; ETindex != et_.size() - 1; ++ETindex)
             {
-                auto &prevEdge = *std::prev(ETindex);
-                auto &edge = *ETindex;
-                auto &nextEdge = *std::next(ETindex);
+                auto &prevEdge = *(std::next(et_.begin(), ETindex - 1));
+                auto &edge = *(std::next(et_.begin(), ETindex));
+                auto &nextEdge = *(std::next(et_.begin(), ETindex + 1));
                 if (Math::equal(nextEdge.m_ymax, edge.m_y) || Math::equal(prevEdge.m_ymax, edge.m_y))
                 {
                     edge.m_x += edge.m_dx;
@@ -372,15 +372,98 @@ HRESULT PWGL::onRender()
             }
             /* Last Edge */
             {
-                auto &prevEdge = *std::prev(ETindex);
-                auto &edge = *ETindex;
-                auto &nextEdge = *std::next(startETIndex);
+                auto &prevEdge = *(std::next(et_.begin(), ETindex - 1));
+                auto &edge = *(std::next(et_.begin(), ETindex));
+                auto &nextEdge = *(std::next(et_.begin(), startETIndex));
                 if (Math::equal(nextEdge.m_ymax, edge.m_y) || Math::equal(prevEdge.m_ymax, edge.m_y))
                 {
                     edge.m_x += edge.m_dx;
                     edge.m_y += edge.m_dy;
                     edge.m_z += edge.m_dz;
                 }
+            }
+        }
+    }
+    /* Pixel Shader */
+    /* 1. Sort Edge by m_y */
+    et_.sort(edgeLessComparator);
+    /* 2. Scanline from bottom to top */
+    for (PWint row = et_.front().m_y; row < WINDOW_HEIGHT; ++row)
+    {
+        ipl_.clear();
+        /* Move edge from ET to AET */
+        for (auto edgeIt = et_.begin(); edgeIt != et_.end();)
+        {
+            if (Math::equal(edgeIt->m_y, row))
+            {
+                aet_.push_back(*edgeIt);
+                edgeIt = et_.erase(edgeIt);
+            }
+            else
+            {
+                break;
+            }
+        }
+        if (aet_.empty())
+            break;
+        /* Sort */
+        aet_.sort(edgeLessComparator);
+        /* First edge's polygon is in */
+        ipl_.push_back(aet_.front().m_polygonId);
+        /* Each scanline period */
+        auto edge1 = aet_.begin();
+        auto edge2 = aet_.end();
+        while (edge1 != aet_.end())
+        {
+            edge2 = std::next(edge1);
+            /* Find nearest polygon BG if returns -1 */
+            auto polyId = getNearestPoly(pt_, ipl_, aet_, edge1, edge2);
+            if (polyId >= 0 && row >= 0)
+            {
+                for (PWint col = edge1->m_x; col < edge2->m_x; ++col)
+                {
+                    PWint red = pt_[polyId].m_color.getZ();
+                    PWint green = pt_[polyId].m_color.getY();
+                    PWint blue = pt_[polyId].m_color.getX();
+                    bmpBuffer_[row * WINDOW_WIDTH + col] = (red << 16) | (green << 8) | blue;
+                }
+            }
+            /* Add or remove polygon of edge2 */
+            if (edge2 != aet_.end())
+            {
+                PWbool edge2InIPL = false;
+                for (PWint poly : ipl_)
+                {
+                    if (poly == edge2->m_polygonId)
+                    {
+                        edge2InIPL = true;
+                        break;
+                    }
+                }
+                if (edge2InIPL)
+                {
+                    ipl_.remove(edge2->m_polygonId);
+                }
+                else
+                {
+                    ipl_.push_back(edge2->m_polygonId);
+                }
+            }
+            edge1 = edge2;
+        }
+        /* Next scanline */
+        for (auto edge = aet_.begin(); edge != aet_.end();)
+        {
+            edge->m_x += edge->m_dx;
+            edge->m_y += edge->m_dy;
+            edge->m_z += edge->m_dz;
+            if (edge->m_y > edge->m_ymax)
+            {
+                edge = aet_.erase(edge);
+            }
+            else
+            {
+                ++edge;
             }
         }
     }
