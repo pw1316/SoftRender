@@ -10,8 +10,7 @@ PWbool FileReader::ObjModel::readObj(const std::string &path)
     std::ifstream file(path);
     if (!file.is_open())
     {
-        std::cerr << "ObjModel::readObj() failed: Can't open file \"" << path << "\".\n";
-        return false;
+        throw std::ios_base::failure("Can't open file");
     }
     m_path = path;
     std::map<std::string, ObjGroup>::iterator it_group = findAndAddGroup("default");
@@ -41,6 +40,12 @@ PWbool FileReader::ObjModel::readObj(const std::string &path)
             if (token[0] == '#')
             {
                 /* Ignore */
+            }
+            /* Material Lib */
+            else if (token[0] == 'm')
+            {
+                lineBuffer >> token;
+                readMtl(token);
             }
             /* Group */
             else if (token == "g")
@@ -144,4 +149,82 @@ PWbool FileReader::ObjModel::readObj(const std::string &path)
 
     file.close();
     return true;
+}
+
+PWbool FileReader::ObjModel::readMtl(const std::string &path)
+{
+    std::ifstream file(path);
+    if (!file.is_open())
+    {
+        throw std::ios_base::failure("Can't open file");
+    }
+    m_matpath = path;
+
+    std::string token;
+    std::string line;
+    std::stringstream lineBuffer;
+    PWdouble x, y, z;
+    while (std::getline(file, line))
+    {
+        lineBuffer.str("");
+        lineBuffer.clear();
+        lineBuffer.sync();
+        while (line.length() > 0 && line[line.length() - 1] == '\\')
+        {
+            line.pop_back();
+            lineBuffer << line;
+            std::getline(file, line);
+        }
+        lineBuffer << line;
+
+        /* Each line */
+        if (lineBuffer >> token)
+        {
+            /* Comment */
+            if (token[0] == '#')
+            {
+                /* Ignore */
+            }
+            /* New Material */
+            else if (token == "newmtl")
+            {
+                lineBuffer >> token;
+                m_materials.emplace_back();
+                m_materials.back().m_name = token;
+            }
+            /* Ambient */
+            else if (token == "Ka")
+            {
+                lineBuffer >> x >> y >> z;
+                m_materials.back().m_ambient[0] = x;
+                m_materials.back().m_ambient[1] = y;
+                m_materials.back().m_ambient[2] = z;
+                m_materials.back().m_ambient[3] = 1;
+            }
+            /* Diffuse */
+            else if (token == "Kd")
+            {
+                lineBuffer >> x >> y >> z;
+                m_materials.back().m_diffuse[0] = x;
+                m_materials.back().m_diffuse[1] = y;
+                m_materials.back().m_diffuse[2] = z;
+                m_materials.back().m_diffuse[3] = 1;
+            }
+            /* Specular */
+            else if (token == "Ks")
+            {
+                lineBuffer >> x >> y >> z;
+                m_materials.back().m_specular[0] = x;
+                m_materials.back().m_specular[1] = y;
+                m_materials.back().m_specular[2] = z;
+                m_materials.back().m_specular[3] = 1;
+            }
+            /* Specular exponent */
+            else if (token == "Ns")
+            {
+                lineBuffer >> x;
+                m_materials.back().m_shine = x / 1000 * 128;
+            }
+        }
+    }
 }

@@ -13,7 +13,6 @@ namespace FileReader
         PWdouble m_ambient[4];
         PWdouble m_diffuse[4];
         PWdouble m_specular[4];
-        PWdouble m_emmissive[4];
         PWdouble m_shine;
     };
 
@@ -37,7 +36,7 @@ namespace FileReader
         void clear()
         {
             m_path.clear();
-            //m_matname.clear();
+            m_matpath.clear();
             m_vertices.clear();
             m_vertices.emplace_back(0, 0, 0);
             m_normals.clear();
@@ -53,10 +52,11 @@ namespace FileReader
             m_groups.clear();
         }
         PWbool readObj(const std::string &path);
+        PWbool readMtl(const std::string &path);
         PWbool writeObj(const std::string &path, PWint mode);
 
         std::string m_path;
-        //std::string m_matname;
+        std::string m_matpath;
         std::vector<Math::Vector3d> m_vertices;
         std::vector<Math::Vector3d> m_normals;
         std::vector<Math::Vector2d> m_texcoords;
@@ -67,7 +67,7 @@ namespace FileReader
     private:
         PWint findMaterial(const std::string &name)
         {
-            for (size_t idx = 0; idx < m_materials.size(); ++idx)
+            for (size_t idx = 1; idx < m_materials.size(); ++idx)
             {
                 if (m_materials[idx].m_name == name)
                 {
