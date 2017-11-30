@@ -102,16 +102,16 @@ HRESULT PWGL::initDevice()
     GetObject(hTexture_, sizeof(BITMAP), &texture_);
 #pragma endregion
     p_model_ = new FileReader::ObjModel();
-    p_model_->readObj("obj.model");
+    p_model_->readObj("california.obj");
     /* Model-World parameters */
-    rotAlpha_ = 45.0f;
+    rotAlpha_ = 0.0f;
     rotAlphaV_ = 0.0f;
-    rotBeta_ = 0.0f;
+    rotBeta_ = 90.0f;
     rotBetaV_ = 0.0f;
     rotGamma_ = 0.0f;
     rotGammaV_ = 0.0f;
     /* World-View matrix */
-    camera_ = Camera::lookAt(0, 0, 2, 0, 0, 0, 0, 1, 0);
+    camera_ = Camera::lookAt(0, 0, 15, 0, 0, 0, 0, 1, 0);
     /* Projection parameters */
     fovx_ = 60.0f;
     aspect_ = 1.0f * WINDOW_WIDTH / WINDOW_HEIGHT;
@@ -289,27 +289,10 @@ HRESULT PWGL::onRender()
             poly.m_b = normProj.getY();
             poly.m_c = normProj.getZ();
             poly.m_d = -(poly.m_a * screen[1].getX() + poly.m_b * screen[1].getY() + poly.m_c * screen[1].getZ());
-            PWuint blue = textureBuffer[texture_.bmWidthBytes * static_cast<PWint>(uv[0].getY() * (texture_.bmHeight - 1)) + \
-                texture_.bmBitsPixel * static_cast<PWint>(uv[0].getX() * (texture_.bmWidth - 1)) / 8];
-            blue += textureBuffer[texture_.bmWidthBytes * static_cast<PWint>(uv[1].getY() * (texture_.bmHeight - 1)) + \
-                texture_.bmBitsPixel * static_cast<PWint>(uv[1].getX() * (texture_.bmWidth - 1)) / 8];
-            blue += textureBuffer[texture_.bmWidthBytes * static_cast<PWint>(uv[2].getY() * (texture_.bmHeight - 1)) + \
-                texture_.bmBitsPixel * static_cast<PWint>(uv[2].getX() * (texture_.bmWidth - 1)) / 8];
-            blue /= 3;
-            PWuint green = textureBuffer[texture_.bmWidthBytes * static_cast<PWint>(uv[0].getY() * (texture_.bmHeight - 1)) + \
-                texture_.bmBitsPixel * static_cast<PWint>(uv[0].getX() * (texture_.bmWidth - 1)) / 8 + 1];
-            blue += textureBuffer[texture_.bmWidthBytes * static_cast<PWint>(uv[1].getY() * (texture_.bmHeight - 1)) + \
-                texture_.bmBitsPixel * static_cast<PWint>(uv[1].getX() * (texture_.bmWidth - 1)) / 8 + 1];
-            blue += textureBuffer[texture_.bmWidthBytes * static_cast<PWint>(uv[2].getY() * (texture_.bmHeight - 1)) + \
-                texture_.bmBitsPixel * static_cast<PWint>(uv[2].getX() * (texture_.bmWidth - 1)) / 8 + 1];
-            blue /= 3;
-            PWuint red = textureBuffer[texture_.bmWidthBytes * static_cast<PWint>(uv[0].getY() * (texture_.bmHeight - 1)) + \
-                texture_.bmBitsPixel * static_cast<PWint>(uv[0].getX() * (texture_.bmWidth - 1)) / 8 + 2];
-            blue += textureBuffer[texture_.bmWidthBytes * static_cast<PWint>(uv[1].getY() * (texture_.bmHeight - 1)) + \
-                texture_.bmBitsPixel * static_cast<PWint>(uv[1].getX() * (texture_.bmWidth - 1)) / 8 + 2];
-            blue += textureBuffer[texture_.bmWidthBytes * static_cast<PWint>(uv[2].getY() * (texture_.bmHeight - 1)) + \
-                texture_.bmBitsPixel * static_cast<PWint>(uv[2].getX() * (texture_.bmWidth - 1)) / 8 + 2];
-            blue /= 3;
+            PWuint blue = p_model_->m_materials[group.second.m_materialIndex].m_diffuse[2] * 255;
+            PWuint green = p_model_->m_materials[group.second.m_materialIndex].m_diffuse[1] * 255;
+            PWuint red = p_model_->m_materials[group.second.m_materialIndex].m_diffuse[0] * 255;
+            
             poly.m_color = Math::Vector3d(blue, green, red);
             poly.m_isIn = false;
             /* 2. Add all of the edges of the polygon into the ET */
@@ -344,42 +327,45 @@ HRESULT PWGL::onRender()
                 edge.m_dz = (pointList[k + 1].getZ() - pointList[k].getZ()) / (y1 - y0);
             }
             /* 3. Fix non-local-extremum */
-            /*   First Edge */
+            if (startETIndex < et_.size())
             {
-                auto &prevEdge = et_.back();
-                auto &edge = *(std::next(et_.begin(), startETIndex));
-                auto &nextEdge = *(std::next(et_.begin(), startETIndex + 1));
-                if (Math::equal(nextEdge.m_ymax, edge.m_y) || Math::equal(prevEdge.m_ymax, edge.m_y))
+                /*   First Edge */
                 {
-                    edge.m_x += edge.m_dx;
-                    edge.m_y += edge.m_dy;
-                    edge.m_z += edge.m_dz;
+                    auto &prevEdge = et_.back();
+                    auto &edge = *(std::next(et_.begin(), startETIndex));
+                    auto &nextEdge = *(std::next(et_.begin(), startETIndex + 1));
+                    if (Math::equal(nextEdge.m_ymax, edge.m_y) || Math::equal(prevEdge.m_ymax, edge.m_y))
+                    {
+                        edge.m_x += edge.m_dx;
+                        edge.m_y += edge.m_dy;
+                        edge.m_z += edge.m_dz;
+                    }
                 }
-            }
-            /* Internal Edge */
-            auto ETindex = startETIndex;
-            for (++ETindex; ETindex != et_.size() - 1; ++ETindex)
-            {
-                auto &prevEdge = *(std::next(et_.begin(), ETindex - 1));
-                auto &edge = *(std::next(et_.begin(), ETindex));
-                auto &nextEdge = *(std::next(et_.begin(), ETindex + 1));
-                if (Math::equal(nextEdge.m_ymax, edge.m_y) || Math::equal(prevEdge.m_ymax, edge.m_y))
+                /* Internal Edge */
+                auto ETindex = startETIndex;
+                for (++ETindex; ETindex != et_.size() - 1; ++ETindex)
                 {
-                    edge.m_x += edge.m_dx;
-                    edge.m_y += edge.m_dy;
-                    edge.m_z += edge.m_dz;
+                    auto &prevEdge = *(std::next(et_.begin(), ETindex - 1));
+                    auto &edge = *(std::next(et_.begin(), ETindex));
+                    auto &nextEdge = *(std::next(et_.begin(), ETindex + 1));
+                    if (Math::equal(nextEdge.m_ymax, edge.m_y) || Math::equal(prevEdge.m_ymax, edge.m_y))
+                    {
+                        edge.m_x += edge.m_dx;
+                        edge.m_y += edge.m_dy;
+                        edge.m_z += edge.m_dz;
+                    }
                 }
-            }
-            /* Last Edge */
-            {
-                auto &prevEdge = *(std::next(et_.begin(), ETindex - 1));
-                auto &edge = *(std::next(et_.begin(), ETindex));
-                auto &nextEdge = *(std::next(et_.begin(), startETIndex));
-                if (Math::equal(nextEdge.m_ymax, edge.m_y) || Math::equal(prevEdge.m_ymax, edge.m_y))
+                /* Last Edge */
                 {
-                    edge.m_x += edge.m_dx;
-                    edge.m_y += edge.m_dy;
-                    edge.m_z += edge.m_dz;
+                    auto &prevEdge = *(std::next(et_.begin(), ETindex - 1));
+                    auto &edge = *(std::next(et_.begin(), ETindex));
+                    auto &nextEdge = *(std::next(et_.begin(), startETIndex));
+                    if (Math::equal(nextEdge.m_ymax, edge.m_y) || Math::equal(prevEdge.m_ymax, edge.m_y))
+                    {
+                        edge.m_x += edge.m_dx;
+                        edge.m_y += edge.m_dy;
+                        edge.m_z += edge.m_dz;
+                    }
                 }
             }
         }
@@ -420,7 +406,7 @@ HRESULT PWGL::onRender()
             auto polyId = getNearestPoly(pt_, ipl_, aet_, edge1, edge2);
             if (polyId >= 0 && row >= 0)
             {
-                for (PWint col = edge1->m_x; col < edge2->m_x; ++col)
+                for (PWint col = max(0, edge1->m_x); col < min(edge2->m_x, WINDOW_WIDTH); ++col)
                 {
                     PWint red = pt_[polyId].m_color.getZ();
                     PWint green = pt_[polyId].m_color.getY();
