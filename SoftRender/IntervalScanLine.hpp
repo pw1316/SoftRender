@@ -2,6 +2,7 @@
 #include "stdafx.h"
 
 #include <list>
+#include <set>
 #include <vector>
 
 #include "Math.hpp"
@@ -26,10 +27,10 @@ struct PolygonNode
     PWbool m_isIn;
 };
 
-using EdgeTable = std::list<EdgeNode>;
+using EdgeTable = std::vector<EdgeNode>;
 using ActiveEdgeTable = std::list<EdgeNode>;
 using PolygonTable = std::vector<PolygonNode>;
-using InPolygonTable = std::list<PWint>;
+using InPolygonTable = std::set<PWint>;
 
 inline PWbool edgeLessComparator(const EdgeNode &lhs, const EdgeNode &rhs)
 {

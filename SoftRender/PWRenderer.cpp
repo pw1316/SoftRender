@@ -332,8 +332,8 @@ HRESULT PWGL::onRender()
                 /*   First Edge */
                 {
                     auto &prevEdge = et_.back();
-                    auto &edge = *(std::next(et_.begin(), startETIndex));
-                    auto &nextEdge = *(std::next(et_.begin(), startETIndex + 1));
+                    auto &edge = et_[startETIndex];
+                    auto &nextEdge = et_[startETIndex + 1];
                     if (Math::equal(nextEdge.m_ymax, edge.m_y) || Math::equal(prevEdge.m_ymax, edge.m_y))
                     {
                         edge.m_x += edge.m_dx;
@@ -345,9 +345,9 @@ HRESULT PWGL::onRender()
                 auto ETindex = startETIndex;
                 for (++ETindex; ETindex != et_.size() - 1; ++ETindex)
                 {
-                    auto &prevEdge = *(std::next(et_.begin(), ETindex - 1));
-                    auto &edge = *(std::next(et_.begin(), ETindex));
-                    auto &nextEdge = *(std::next(et_.begin(), ETindex + 1));
+                    auto &prevEdge = et_[ETindex - 1];
+                    auto &edge = et_[ETindex];
+                    auto &nextEdge = et_[ETindex + 1];
                     if (Math::equal(nextEdge.m_ymax, edge.m_y) || Math::equal(prevEdge.m_ymax, edge.m_y))
                     {
                         edge.m_x += edge.m_dx;
@@ -357,9 +357,9 @@ HRESULT PWGL::onRender()
                 }
                 /* Last Edge */
                 {
-                    auto &prevEdge = *(std::next(et_.begin(), ETindex - 1));
-                    auto &edge = *(std::next(et_.begin(), ETindex));
-                    auto &nextEdge = *(std::next(et_.begin(), startETIndex));
+                    auto &prevEdge = et_[ETindex - 1];
+                    auto &edge = et_[ETindex];
+                    auto &nextEdge = et_[startETIndex];
                     if (Math::equal(nextEdge.m_ymax, edge.m_y) || Math::equal(prevEdge.m_ymax, edge.m_y))
                     {
                         edge.m_x += edge.m_dx;
@@ -372,18 +372,19 @@ HRESULT PWGL::onRender()
     }
     /* Pixel Shader */
     /* 1. Sort Edge by m_y */
-    et_.sort(edgeLessComparator);
+    std::sort(et_.begin(), et_.end(), edgeLessComparator);
+    auto edgeIt = et_.begin();
     /* 2. Scanline from bottom to top */
     for (PWint row = et_.front().m_y; row < WINDOW_HEIGHT; ++row)
     {
         ipl_.clear();
         /* Move edge from ET to AET */
-        for (auto edgeIt = et_.begin(); edgeIt != et_.end();)
+        while (edgeIt != et_.end())
         {
             if (Math::equal(edgeIt->m_y, row))
             {
                 aet_.push_back(*edgeIt);
-                edgeIt = et_.erase(edgeIt);
+                ++edgeIt;
             }
             else
             {
@@ -395,7 +396,7 @@ HRESULT PWGL::onRender()
         /* Sort */
         aet_.sort(edgeLessComparator);
         /* First edge's polygon is in */
-        ipl_.push_back(aet_.front().m_polygonId);
+        ipl_.insert(aet_.front().m_polygonId);
         /* Each scanline period */
         auto edge1 = aet_.begin();
         auto edge2 = aet_.end();
@@ -418,21 +419,13 @@ HRESULT PWGL::onRender()
             if (edge2 != aet_.end())
             {
                 PWbool edge2InIPL = false;
-                for (PWint poly : ipl_)
+                if (ipl_.find(edge2->m_polygonId) != ipl_.end())
                 {
-                    if (poly == edge2->m_polygonId)
-                    {
-                        edge2InIPL = true;
-                        break;
-                    }
-                }
-                if (edge2InIPL)
-                {
-                    ipl_.remove(edge2->m_polygonId);
+                    ipl_.erase(edge2->m_polygonId);
                 }
                 else
                 {
-                    ipl_.push_back(edge2->m_polygonId);
+                    ipl_.insert(edge2->m_polygonId);
                 }
             }
             edge1 = edge2;
