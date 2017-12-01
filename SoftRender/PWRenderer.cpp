@@ -103,7 +103,7 @@ HRESULT PWGL::initDevice()
 #pragma endregion
 
     p_model_ = new FileReader::ObjModel();
-    p_model_->readObj("2.obj");
+    p_model_->readObj("models/2.obj");
     /* Model-World parameters */
     rotAlpha_ = 0.0f;
     rotAlphaV_ = 0.0f;
