@@ -16,10 +16,6 @@ inline void SafeRelease(Interface **ppInterfaceToRelease)
     }
 }
 
-typedef struct __TriangleIndex {
-    int p0, p1, p2;
-} TriangleIndex;
-
 /* Current hInstance */
 #ifndef HINST_THISCOMPONENT
 EXTERN_C IMAGE_DOS_HEADER __ImageBase;
@@ -29,15 +25,15 @@ EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 class PWGL
 {
 public:
-    static PWGL * getInstance();
+    static PWGL *getInstance();
     static void releaseInstance();
     HRESULT initWindow();
     HRESULT initDevice();
     void mainLoop();
 
 private:
-    PWGL();
-    ~PWGL();
+    PWGL() {}
+    ~PWGL() {}
     HRESULT onRender();
     void onResize(UINT width, UINT height);
     static LRESULT CALLBACK wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
@@ -54,8 +50,8 @@ private:
     HBITMAP hBITMAP_ = nullptr;
     BITMAPINFO bmpInfo_ = {};
     UINT *bmpBuffer_ = nullptr;
-    HBITMAP hTexture_ = nullptr;
-    BITMAP texture_ = {};
+    //HBITMAP hTexture_ = nullptr;
+    //BITMAP texture_ = {};
 
     /* Interval Scan Line Z */
     PolygonTable pt_;

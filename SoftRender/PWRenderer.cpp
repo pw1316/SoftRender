@@ -13,7 +13,7 @@ const PWint PWGL::WINDOW_WIDTH = 800;
 const PWint PWGL::WINDOW_HEIGHT = 600;
 
 /* Methods */
-PWGL* PWGL::getInstance()
+PWGL *PWGL::getInstance()
 {
     if (PWGL::instance_ == nullptr)
     {
@@ -86,11 +86,11 @@ HRESULT PWGL::initDevice()
     hMemDC_ = CreateCompatibleDC(hDC_);
     hBITMAP_ = CreateCompatibleBitmap(hDC_, WINDOW_WIDTH, WINDOW_HEIGHT);
     SelectObject(hMemDC_, hBITMAP_);
-    bmpInfo_.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);//�ṹ����ֽ���
-    bmpInfo_.bmiHeader.biWidth = WINDOW_WIDTH;//������Ϊ��λ��λͼ��
-    bmpInfo_.bmiHeader.biHeight = -WINDOW_HEIGHT;//������Ϊ��λ��λͼ��,��Ϊ������ʾ�����Ͻ�Ϊԭ�㣬���������½�Ϊԭ��
-    bmpInfo_.bmiHeader.biPlanes = 1;//Ŀ���豸��ƽ��������������Ϊ1
-    bmpInfo_.bmiHeader.biBitCount = 32; //λͼ��ÿ�����ص�λ��
+    bmpInfo_.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bmpInfo_.bmiHeader.biWidth = WINDOW_WIDTH;
+    bmpInfo_.bmiHeader.biHeight = -WINDOW_HEIGHT;
+    bmpInfo_.bmiHeader.biPlanes = 1;
+    bmpInfo_.bmiHeader.biBitCount = 32;//ABGR
     bmpInfo_.bmiHeader.biCompression = BI_RGB;
     bmpInfo_.bmiHeader.biSizeImage = 0;
     bmpInfo_.bmiHeader.biXPelsPerMeter = 0;
@@ -98,11 +98,12 @@ HRESULT PWGL::initDevice()
     bmpInfo_.bmiHeader.biClrUsed = 0;
     bmpInfo_.bmiHeader.biClrImportant = 0;
     hBITMAP_ = CreateDIBSection(hMemDC_, &bmpInfo_, DIB_RGB_COLORS, (void**)&bmpBuffer_, NULL, 0);
-    hTexture_ = (HBITMAP)::LoadImage(HINST_THISCOMPONENT, "Texture.bmp", IMAGE_BITMAP, 0, 0, LR_DEFAULTCOLOR | LR_CREATEDIBSECTION | LR_LOADFROMFILE);
-    GetObject(hTexture_, sizeof(BITMAP), &texture_);
+    //hTexture_ = (HBITMAP)::LoadImage(HINST_THISCOMPONENT, "Texture.bmp", IMAGE_BITMAP, 0, 0, LR_DEFAULTCOLOR | LR_CREATEDIBSECTION | LR_LOADFROMFILE);
+    //GetObject(hTexture_, sizeof(BITMAP), &texture_);
 #pragma endregion
+
     p_model_ = new FileReader::ObjModel();
-    p_model_->readObj("california.obj");
+    p_model_->readObj("2.obj");
     /* Model-World parameters */
     rotAlpha_ = 0.0f;
     rotAlphaV_ = 0.0f;
@@ -118,7 +119,7 @@ HRESULT PWGL::initDevice()
     near_ = 1.0f;
     far_ = 100.0f;
     /* Light */
-    lightPos.set(0.0f, 0.0f, 5.0f);
+    lightPos.set(0.0f, 0.0f, 15.0f);// World position
     lightDiffuse_.set(0.4f, 0.4f, 0.4f);
     lightSpecular_.set(0.4f, 0.4f, 0.4f);
     lightAmbient.set(0.2f, 0.2f, 0.2f);
@@ -144,30 +145,24 @@ void PWGL::mainLoop()
     }
 }
 
-PWGL::PWGL()
-{
-}
-
-PWGL::~PWGL()
-{
-}
-
 HRESULT PWGL::onRender()
 {
     LARGE_INTEGER startTick = {};
     LARGE_INTEGER endTick = {};
     QueryPerformanceCounter(&startTick);
-    /* Reset*/
+    /* Reset frame buffer */
     for (int i = 0; i < WINDOW_WIDTH * WINDOW_HEIGHT; i++)
     {
-        bmpBuffer_[i] = 0x00D7C4BB;
+        /* USUAO */
+        bmpBuffer_[i] = 0x0093B491;
     }
+    /* Reset scanline */
     pt_.clear();
     ipl_.clear();
     et_.clear();
     aet_.clear();
 
-    Math::Matrix44d transform;
+    Math::Matrix44d transform;// MV matrix
     transform.setRotate(0.0f, 1.0f, 0.0f, rotGamma_ / 180.0f * PI);
     transform.addRotate(0.0f, 0.0f, 1.0f, rotBeta_ / 180.0f * PI);
     transform.addRotate(0.0f, 1.0f, 0.0f, rotAlpha_ / 180.0f * PI);
@@ -180,10 +175,11 @@ HRESULT PWGL::onRender()
     /* p0, p1, p2: Face's vertices in view */
     /* proj0, proj1, proj2: Face's vertices in projection */
     /* screen0, screen1, screen2: Face's vertices in projection with w normalized */
-    /* pointList: Clipped triangle list */
-    /* (j, i) Point on screen */
+    /* pointList: Clipped vertex list */
     auto &vertexBuffer = p_model_->m_vertices;
     auto &texBuffer = p_model_->m_texcoords;
+    auto &normalBuffer = p_model_->m_normals;
+    auto &materialBuffer = p_model_->m_materials;
     for (auto &group : p_model_->m_groups)
     {
         for (auto &triIdx : group.second.m_triangleIndices)
@@ -202,14 +198,24 @@ HRESULT PWGL::onRender()
             p[0] = (transform * p[0].toVector4d1()).toVector3d();
             p[1] = (transform * p[1].toVector4d1()).toVector3d();
             p[2] = (transform * p[2].toVector4d1()).toVector3d();
-            Math::Vector3d norm = Math::cross(p[1] - p[0], p[2] - p[1]);
+            Math::Vector3d norm;
+            /* No normal info in triangle */
+            if (triangle.m_normalIndex[0] == 0)
+            {
+                norm = Math::cross(p[1] - p[0], p[2] - p[1]).normal();
+            }
+            else
+            {
+                norm = (normalBuffer[triangle.m_normalIndex[0]] + normalBuffer[triangle.m_normalIndex[1]] + normalBuffer[triangle.m_normalIndex[2]]) / 3;
+            }
+            
             /* Clip and Projection */
             Math::Matrix44d projection(WINDOW_WIDTH / std::tan(fovx_ / 180 * PI / 2) / 2.0, 0, -WINDOW_WIDTH / 2.0, 0,
                 0, WINDOW_HEIGHT * aspect_ / tan(fovx_ / 180 * PI / 2) / 2.0, -WINDOW_HEIGHT / 2.0, 0,
                 0, 0, far_ / (far_ - near_), near_ * far_ / (far_ - near_),
                 0, 0, -1, 0);
             PWint index = 0;
-            Math::Vector3d pointList[10];
+            Math::Vector3d pointList[12];
             Math::Vector4d proj[3];
             Math::Vector3d screen[3];
             proj[0] = projection * p[0].toVector4d1();
@@ -283,15 +289,35 @@ HRESULT PWGL::onRender()
             /* 1. Add the Clipped polygon */
             pt_.emplace_back();
             auto &poly = pt_.back();
-            PWbyte* textureBuffer = (PWbyte *)(texture_.bmBits);
+            //PWbyte* textureBuffer = (PWbyte *)(texture_.bmBits);
             poly.m_id = pt_.size() - 1;
             poly.m_a = normProj.getX();
             poly.m_b = normProj.getY();
             poly.m_c = normProj.getZ();
             poly.m_d = -(poly.m_a * screen[1].getX() + poly.m_b * screen[1].getY() + poly.m_c * screen[1].getZ());
-            PWuint blue = p_model_->m_materials[group.second.m_materialIndex].m_diffuse[2] * 255;
-            PWuint green = p_model_->m_materials[group.second.m_materialIndex].m_diffuse[1] * 255;
-            PWuint red = p_model_->m_materials[group.second.m_materialIndex].m_diffuse[0] * 255;
+            Math::Vector3d polygonInView = (p[0] + p[1] + p[2]) / 3;
+            Math::Vector3d l = (lightInView - polygonInView).normal();
+            Math::Vector3d r = norm * 2 * l.dot(norm) - l;
+            Math::Vector3d v = -polygonInView.normal();
+            PWdouble vDiff = max(norm.dot(l), 0.0f);
+            PWdouble vSpec = max(v.dot(r) * v.dot(r) * v.dot(r) * v.dot(r), 0.0f);
+            PWdouble vAmb = 1.0f;
+            PWdouble blued;
+            PWdouble greend;
+            PWdouble redd;
+            if (group.second.m_materialIndex == 0)
+            {
+                blued = greend = redd = 1;
+            }
+            else
+            {
+                blued = materialBuffer[group.second.m_materialIndex].m_diffuse[2];
+                greend = materialBuffer[group.second.m_materialIndex].m_diffuse[1];
+                redd = materialBuffer[group.second.m_materialIndex].m_diffuse[0];
+            }
+            PWuint blue = blued * (vDiff * lightDiffuse_.getX() + vSpec * lightSpecular_.getX() + lightAmbient.getX()) * 255;
+            PWuint green = greend * (vDiff * lightDiffuse_.getY() + vSpec * lightSpecular_.getY() + lightAmbient.getY()) * 255;
+            PWuint red = redd * (vDiff * lightDiffuse_.getZ() + vSpec * lightSpecular_.getZ() + lightAmbient.getZ()) * 255;
             
             poly.m_color = Math::Vector3d(blue, green, red);
             poly.m_isIn = false;
@@ -450,7 +476,7 @@ HRESULT PWGL::onRender()
     /* Copy buffer */
     CHAR fpsBuffer[256];
     sprintf_s(fpsBuffer, 256, "FPS: %.1f", fps_);
-    SetBkColor(hMemDC_, RGB(0xD7, 0xC4, 0xBB));
+    SetBkColor(hMemDC_, RGB(0x91, 0xB4, 0x93));
     SetTextColor(hMemDC_, RGB(0xD0, 0x10, 0x4C));
     TextOut(hMemDC_, 0, 0, fpsBuffer, lstrlen(fpsBuffer));
     SelectObject(hMemDC_, hBITMAP_);
@@ -503,8 +529,8 @@ LRESULT PWGL::wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
             case WM_MOUSEWHEEL:
             {
-                FLOAT zDelta = 1.0f * GET_WHEEL_DELTA_WPARAM(wParam) / 1200;
-                //ppwgl->camera_.moveForward(zDelta);
+                PWdouble zDelta = 1.0f * GET_WHEEL_DELTA_WPARAM(wParam) / 1200;
+                ppwgl->camera_.addTranslate(0, 0, zDelta);
             }
             result = 0;
             wasHandled = true;
