@@ -89,7 +89,7 @@ PWbool FileReader::ObjModel::readObj(const std::string &path)
                         }
                         else
                         {
-                            y = -1;
+                            y = 0;
                             tokenBuf.clear();
                         }
                         /* n */
@@ -99,7 +99,7 @@ PWbool FileReader::ObjModel::readObj(const std::string &path)
                         }
                         else
                         {
-                            z = -1;
+                            z = 0;
                         }
                     }
 

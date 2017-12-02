@@ -9,8 +9,8 @@
 /* Static Menber */
 PWGL* PWGL::instance_ = nullptr;
 LPCSTR PWGL::WINDOW_CLASS_NAME = "PWGL";
-const PWint PWGL::WINDOW_WIDTH = 800;
-const PWint PWGL::WINDOW_HEIGHT = 600;
+const PWint PWGL::WINDOW_WIDTH = 1600;
+const PWint PWGL::WINDOW_HEIGHT = 900;
 
 /* Methods */
 PWGL *PWGL::getInstance()
@@ -102,24 +102,25 @@ HRESULT PWGL::initDevice()
     //GetObject(hTexture_, sizeof(BITMAP), &texture_);
 #pragma endregion
 
+    /* 1 meter == 40 in model */
     p_model_ = new FileReader::ObjModel();
-    p_model_->readObj("models/2.obj");
+    p_model_->readObj("models/yuxu.obj");
     /* Model-World parameters */
-    rotAlpha_ = 0.0f;
-    rotAlphaV_ = 0.0f;
-    rotBeta_ = 90.0f;
-    rotBetaV_ = 0.0f;
-    rotGamma_ = 0.0f;
-    rotGammaV_ = 0.0f;
+    rotAlpha_ = 0;
+    rotAlphaV_ = 0;
+    rotBeta_ = 0;
+    rotBetaV_ = 0;
+    rotGamma_ = 0;
+    rotGammaV_ = 0;
     /* World-View matrix */
-    camera_ = Camera::lookAt(0, 0, 15, 0, 0, 0, 0, 1, 0);
+    camera_ = Camera::lookAt(0, 64, 80, 0, 64, 0, 0, 1, 0);
     /* Projection parameters */
-    fovx_ = 60.0f;
-    aspect_ = 1.0f * WINDOW_WIDTH / WINDOW_HEIGHT;
-    near_ = 1.0f;
-    far_ = 100.0f;
+    fovx_ = 60;
+    aspect_ = 1.0 * WINDOW_WIDTH / WINDOW_HEIGHT;
+    near_ = 1;
+    far_ = 4500;
     /* Light */
-    lightPos.set(0.0f, 0.0f, 15.0f);// World position
+    lightPos.set(0, 64, 80);// World position
     lightDiffuse_.set(0.4f, 0.4f, 0.4f);
     lightSpecular_.set(0.4f, 0.4f, 0.4f);
     lightAmbient.set(0.2f, 0.2f, 0.2f);
@@ -199,15 +200,18 @@ HRESULT PWGL::onRender()
             p[1] = (transform * p[1].toVector4d1()).toVector3d();
             p[2] = (transform * p[2].toVector4d1()).toVector3d();
             Math::Vector3d norm;
+            Math::Vector3d calcnorm = Math::cross(p[1] - p[0], p[2] - p[1]).normal();
             /* No normal info in triangle */
-            if (triangle.m_normalIndex[0] == 0)
-            {
+            /// TODO Normal Transform
+            //if (triangle.m_normalIndex[0] == 0)
+            //{
                 norm = Math::cross(p[1] - p[0], p[2] - p[1]).normal();
-            }
-            else
-            {
-                norm = (normalBuffer[triangle.m_normalIndex[0]] + normalBuffer[triangle.m_normalIndex[1]] + normalBuffer[triangle.m_normalIndex[2]]) / 3;
-            }
+            //}
+            //else
+            //{
+            //    Math::Vector3d norm2 = Math::cross(p[1] - p[0], p[2] - p[1]).normal();
+            //    norm = (normalBuffer[triangle.m_normalIndex[0]] + normalBuffer[triangle.m_normalIndex[1]] + normalBuffer[triangle.m_normalIndex[2]]) / 3;
+            //}
             
             /* Clip and Projection */
             Math::Matrix44d projection(WINDOW_WIDTH / std::tan(fovx_ / 180 * PI / 2) / 2.0, 0, -WINDOW_WIDTH / 2.0, 0,
@@ -397,78 +401,81 @@ HRESULT PWGL::onRender()
         }
     }
     /* Pixel Shader */
-    /* 1. Sort Edge by m_y */
-    std::sort(et_.begin(), et_.end(), edgeLessComparator);
-    auto edgeIt = et_.begin();
-    /* 2. Scanline from bottom to top */
-    for (PWint row = et_.front().m_y; row < WINDOW_HEIGHT; ++row)
+    if (!et_.empty())
     {
-        ipl_.clear();
-        /* Move edge from ET to AET */
-        while (edgeIt != et_.end())
+        /* 1. Sort Edge by m_y */
+        std::sort(et_.begin(), et_.end(), edgeLessComparator);
+        auto edgeIt = et_.begin();
+        /* 2. Scanline from bottom to top */
+        for (PWint row = et_.front().m_y; row < WINDOW_HEIGHT; ++row)
         {
-            if (Math::equal(edgeIt->m_y, row))
+            ipl_.clear();
+            /* Move edge from ET to AET */
+            while (edgeIt != et_.end())
             {
-                aet_.push_back(*edgeIt);
-                ++edgeIt;
-            }
-            else
-            {
-                break;
-            }
-        }
-        if (aet_.empty())
-            break;
-        /* Sort */
-        aet_.sort(edgeLessComparator);
-        /* First edge's polygon is in */
-        ipl_.insert(aet_.front().m_polygonId);
-        /* Each scanline period */
-        auto edge1 = aet_.begin();
-        auto edge2 = aet_.end();
-        while (edge1 != aet_.end())
-        {
-            edge2 = std::next(edge1);
-            /* Find nearest polygon BG if returns -1 */
-            auto polyId = getNearestPoly(pt_, ipl_, aet_, edge1, edge2);
-            if (polyId >= 0 && row >= 0)
-            {
-                for (PWint col = max(0, edge1->m_x); col < min(edge2->m_x, WINDOW_WIDTH); ++col)
+                if (Math::equal(edgeIt->m_y, row))
                 {
-                    PWint red = pt_[polyId].m_color.getZ();
-                    PWint green = pt_[polyId].m_color.getY();
-                    PWint blue = pt_[polyId].m_color.getX();
-                    bmpBuffer_[row * WINDOW_WIDTH + col] = (red << 16) | (green << 8) | blue;
-                }
-            }
-            /* Add or remove polygon of edge2 */
-            if (edge2 != aet_.end())
-            {
-                PWbool edge2InIPL = false;
-                if (ipl_.find(edge2->m_polygonId) != ipl_.end())
-                {
-                    ipl_.erase(edge2->m_polygonId);
+                    aet_.push_back(*edgeIt);
+                    ++edgeIt;
                 }
                 else
                 {
-                    ipl_.insert(edge2->m_polygonId);
+                    break;
                 }
             }
-            edge1 = edge2;
-        }
-        /* Next scanline */
-        for (auto edge = aet_.begin(); edge != aet_.end();)
-        {
-            edge->m_x += edge->m_dx;
-            edge->m_y += edge->m_dy;
-            edge->m_z += edge->m_dz;
-            if (edge->m_y > edge->m_ymax)
+            if (aet_.empty())
+                break;
+            /* Sort */
+            aet_.sort(edgeLessComparator);
+            /* First edge's polygon is in */
+            ipl_.insert(aet_.front().m_polygonId);
+            /* Each scanline period */
+            auto edge1 = aet_.begin();
+            auto edge2 = aet_.end();
+            while (edge1 != aet_.end())
             {
-                edge = aet_.erase(edge);
+                edge2 = std::next(edge1);
+                /* Find nearest polygon BG if returns -1 */
+                auto polyId = getNearestPoly(pt_, ipl_, aet_, edge1, edge2);
+                if (polyId >= 0 && row >= 0)
+                {
+                    for (PWint col = max(0, edge1->m_x); col < min(edge2->m_x, WINDOW_WIDTH); ++col)
+                    {
+                        PWint red = pt_[polyId].m_color.getZ();
+                        PWint green = pt_[polyId].m_color.getY();
+                        PWint blue = pt_[polyId].m_color.getX();
+                        bmpBuffer_[(WINDOW_HEIGHT - 1 - row) * WINDOW_WIDTH + col] = (red << 16) | (green << 8) | blue;
+                    }
+                }
+                /* Add or remove polygon of edge2 */
+                if (edge2 != aet_.end())
+                {
+                    PWbool edge2InIPL = false;
+                    if (ipl_.find(edge2->m_polygonId) != ipl_.end())
+                    {
+                        ipl_.erase(edge2->m_polygonId);
+                    }
+                    else
+                    {
+                        ipl_.insert(edge2->m_polygonId);
+                    }
+                }
+                edge1 = edge2;
             }
-            else
+            /* Next scanline */
+            for (auto edge = aet_.begin(); edge != aet_.end();)
             {
-                ++edge;
+                edge->m_x += edge->m_dx;
+                edge->m_y += edge->m_dy;
+                edge->m_z += edge->m_dz;
+                if (edge->m_y > edge->m_ymax)
+                {
+                    edge = aet_.erase(edge);
+                }
+                else
+                {
+                    ++edge;
+                }
             }
         }
     }
