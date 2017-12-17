@@ -34,9 +34,6 @@
     <ClInclude Include="Camera.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="Common.hpp">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="ObjReader.hpp">
       <Filter>头文件</Filter>
     </ClInclude>

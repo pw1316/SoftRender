@@ -55,7 +55,7 @@ private:
     /* Interval Scan Line Z */
     PolygonTable pt_;
     InPolygonTable ipl_;
-    EdgeTable et_;
+    EdgeTable *p_et_;
     ActiveEdgeTable aet_;
     /* Obj Model */
     FileReader::ObjModel *p_model_ = nullptr;

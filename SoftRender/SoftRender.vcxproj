@@ -125,7 +125,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.hpp" />
-    <ClInclude Include="Common.hpp" />
     <ClInclude Include="IntervalScanLine.hpp" />
     <ClInclude Include="Math.hpp" />
     <ClInclude Include="ObjReader.hpp" />
