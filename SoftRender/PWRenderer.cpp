@@ -9,6 +9,7 @@
 /* Static Menber */
 PWGL* PWGL::instance_ = nullptr;
 LPCSTR PWGL::WINDOW_CLASS_NAME = "PWGL";
+LPCSTR PWGL::WINDOW_NAME = "SOFT_RENDER";
 const PWint PWGL::WINDOW_WIDTH = 1600;
 const PWint PWGL::WINDOW_HEIGHT = 900;
 
@@ -53,8 +54,8 @@ HRESULT PWGL::initWindow()
     }
     hWND_ = CreateWindowEx(
         0,
-        PWGL::WINDOW_CLASS_NAME,//Class name
-        "SoftRender",//Window name
+        PWGL::WINDOW_CLASS_NAME,
+        PWGL::WINDOW_NAME,
         WS_OVERLAPPEDWINDOW ^ WS_THICKFRAME ^ WS_MAXIMIZEBOX,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
@@ -178,9 +179,6 @@ HRESULT PWGL::onRender()
     /* screen0, screen1, screen2: Face's vertices in projection with w normalized */
     /* pointList: Clipped vertex list */
     auto &vertexBuffer = p_model_->m_vertices;
-    auto &texBuffer = p_model_->m_texcoords;
-    auto &normalBuffer = p_model_->m_normals;
-    auto &materialBuffer = p_model_->m_materials;
     for (auto &group : p_model_->m_groups)
     {
         for (auto &triIdx : group.second.m_triangleIndices)
@@ -191,28 +189,12 @@ HRESULT PWGL::onRender()
             p[0] = vertexBuffer[triangle.m_vertexIndex[0]];
             p[1] = vertexBuffer[triangle.m_vertexIndex[1]];
             p[2] = vertexBuffer[triangle.m_vertexIndex[2]];
-            Math::Vector2d uv[3];
-            uv[0] = texBuffer[triangle.m_texcoordIndex[0]];
-            uv[1] = texBuffer[triangle.m_texcoordIndex[1]];
-            uv[2] = texBuffer[triangle.m_texcoordIndex[2]];
             /* View */
             p[0] = (transform * p[0].toVector4d1()).toVector3d();
             p[1] = (transform * p[1].toVector4d1()).toVector3d();
             p[2] = (transform * p[2].toVector4d1()).toVector3d();
-            Math::Vector3d norm;
-            Math::Vector3d calcnorm = Math::cross(p[1] - p[0], p[2] - p[1]).normal();
-            /* No normal info in triangle */
-            /// TODO Normal Transform
-            //if (triangle.m_normalIndex[0] == 0)
-            //{
-                norm = Math::cross(p[1] - p[0], p[2] - p[1]).normal();
-            //}
-            //else
-            //{
-            //    Math::Vector3d norm2 = Math::cross(p[1] - p[0], p[2] - p[1]).normal();
-            //    norm = (normalBuffer[triangle.m_normalIndex[0]] + normalBuffer[triangle.m_normalIndex[1]] + normalBuffer[triangle.m_normalIndex[2]]) / 3;
-            //}
-            
+            Math::Vector3d norm = Math::cross(p[1] - p[0], p[2] - p[1]).normal();
+
             /* Clip and Projection */
             Math::Matrix44d projection(WINDOW_WIDTH / std::tan(fovx_ / 180 * PI / 2) / 2.0, 0, -WINDOW_WIDTH / 2.0, 0,
                 0, WINDOW_HEIGHT * aspect_ / tan(fovx_ / 180 * PI / 2) / 2.0, -WINDOW_HEIGHT / 2.0, 0,
@@ -289,6 +271,15 @@ HRESULT PWGL::onRender()
                 }
             }
             if (index < 3) continue;
+            /* If x and y are completely out of range */
+            PWdouble left = min(screen[0].getX(), min(screen[1].getX(), screen[2].getX()));
+            PWdouble right = max(screen[0].getX(), max(screen[1].getX(), screen[2].getX()));
+            PWdouble top = max(screen[0].getY(), max(screen[1].getY(), screen[2].getY()));
+            PWdouble bottom = min(screen[0].getY(), min(screen[1].getY(), screen[2].getY()));
+            if (right < 0 || left > WINDOW_WIDTH || bottom > WINDOW_HEIGHT || top < 0)
+            {
+                continue;
+            }
             /* Rasterize */
             /* 1. Add the Clipped polygon */
             pt_.emplace_back();
@@ -306,23 +297,9 @@ HRESULT PWGL::onRender()
             PWdouble vDiff = max(norm.dot(l), 0.0f);
             PWdouble vSpec = max(v.dot(r) * v.dot(r) * v.dot(r) * v.dot(r), 0.0f);
             PWdouble vAmb = 1.0f;
-            PWdouble blued;
-            PWdouble greend;
-            PWdouble redd;
-            if (group.second.m_materialIndex == 0)
-            {
-                blued = greend = redd = 1;
-            }
-            else
-            {
-                blued = materialBuffer[group.second.m_materialIndex].m_diffuse[2];
-                greend = materialBuffer[group.second.m_materialIndex].m_diffuse[1];
-                redd = materialBuffer[group.second.m_materialIndex].m_diffuse[0];
-            }
-            PWuint blue = blued * (vDiff * lightDiffuse_.getX() + vSpec * lightSpecular_.getX() + lightAmbient.getX()) * 255;
-            PWuint green = greend * (vDiff * lightDiffuse_.getY() + vSpec * lightSpecular_.getY() + lightAmbient.getY()) * 255;
-            PWuint red = redd * (vDiff * lightDiffuse_.getZ() + vSpec * lightSpecular_.getZ() + lightAmbient.getZ()) * 255;
-            
+            PWuint blue = (vDiff * lightDiffuse_.getX() + vSpec * lightSpecular_.getX() + lightAmbient.getX()) * 255;
+            PWuint green = (vDiff * lightDiffuse_.getY() + vSpec * lightSpecular_.getY() + lightAmbient.getY()) * 255;
+            PWuint red = (vDiff * lightDiffuse_.getZ() + vSpec * lightSpecular_.getZ() + lightAmbient.getZ()) * 255;
             poly.m_color = Math::Vector3d(blue, green, red);
             poly.m_isIn = false;
             /* 2. Add all of the edges of the polygon into the ET */

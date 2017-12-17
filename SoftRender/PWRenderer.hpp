@@ -41,6 +41,7 @@ private:
 private:
     static PWGL *instance_;
     static LPCSTR WINDOW_CLASS_NAME;
+    static LPCSTR WINDOW_NAME;
     const static INT WINDOW_WIDTH;
     const static INT WINDOW_HEIGHT;
 
@@ -50,8 +51,6 @@ private:
     HBITMAP hBITMAP_ = nullptr;
     BITMAPINFO bmpInfo_ = {};
     UINT *bmpBuffer_ = nullptr;
-    //HBITMAP hTexture_ = nullptr;
-    //BITMAP texture_ = {};
 
     /* Interval Scan Line Z */
     PolygonTable pt_;
