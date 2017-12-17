@@ -104,7 +104,7 @@ HRESULT PWGL::initDevice()
     p_et_ = new EdgeTable[WINDOW_HEIGHT];
     /* 1 meter == 40 in model */
     p_model_ = new FileReader::ObjModel();
-    p_model_->readObj("models/2.obj");
+    p_model_->readObj("models/yuxu.obj");
     /* Model-World parameters */
     rotAlpha_ = 0;
     rotAlphaV_ = 0;
@@ -191,9 +191,6 @@ HRESULT PWGL::onRender()
             p[0] = vertexBuffer[triangle.m_vertexIndex[0]];
             p[1] = vertexBuffer[triangle.m_vertexIndex[1]];
             p[2] = vertexBuffer[triangle.m_vertexIndex[2]];
-            p[0] *= 25;
-            p[1] *= 25;
-            p[2] *= 25;
             /* View */
             p[0] = (transform * p[0].toVector4d1()).toVector3d();
             p[1] = (transform * p[1].toVector4d1()).toVector3d();

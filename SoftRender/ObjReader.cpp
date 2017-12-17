@@ -89,7 +89,34 @@ PWbool FileReader::ObjModel::readObj(const std::string &path)
             }
         }
     }
-
     file.close();
+
+    /* normalize */
+    Math::Vector3d meanV;
+    PWdouble minX = m_vertices[1].getX();
+    PWdouble minY = m_vertices[1].getY();
+    PWdouble minZ = m_vertices[1].getZ();
+    PWdouble maxX = m_vertices[1].getX();
+    PWdouble maxY = m_vertices[1].getY();
+    PWdouble maxZ = m_vertices[1].getZ();
+    meanV.setX(0);
+    meanV.setY(0);
+    meanV.setZ(0);
+    for (int i = 1; i < m_vertices.size(); ++i)
+    {
+        minX = min(minX, m_vertices[i].getX());
+        minY = min(minY, m_vertices[i].getY());
+        minZ = min(minZ, m_vertices[i].getZ());
+        maxX = max(maxX, m_vertices[i].getX());
+        maxY = max(maxY, m_vertices[i].getY());
+        maxZ = max(maxZ, m_vertices[i].getZ());
+        meanV += m_vertices[i];
+    }
+    meanV /= m_vertices.size() - 1;
+    PWdouble width = max(maxX - minX, max(maxY - minY, maxZ - minZ));
+    for (int i = 1; i < m_vertices.size(); ++i)
+    {
+        m_vertices[i] = (m_vertices[i] - meanV) / width * 25;
+    }
     return true;
 }
