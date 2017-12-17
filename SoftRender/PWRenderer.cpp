@@ -104,7 +104,7 @@ HRESULT PWGL::initDevice()
     p_et_ = new EdgeTable[WINDOW_HEIGHT];
     /* 1 meter == 40 in model */
     p_model_ = new FileReader::ObjModel();
-    p_model_->readObj("models/yuxu.obj");
+    p_model_->readObj("models/2.obj");
     /* Model-World parameters */
     rotAlpha_ = 0;
     rotAlphaV_ = 0;
