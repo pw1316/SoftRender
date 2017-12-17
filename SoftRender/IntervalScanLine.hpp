@@ -26,24 +26,7 @@ struct PolygonNode
 using EdgeTable = std::vector<EdgeNode>;
 using ActiveEdgeTable = std::list<EdgeNode>;
 using PolygonTable = std::vector<PolygonNode>;
-using InPolygonTable = std::set<PWint>;
-
-inline PWbool edgeLessComparator(const EdgeNode &lhs, const EdgeNode &rhs)
-{
-    if (lhs.m_y < rhs.m_y)
-        return true;
-    if (lhs.m_y > rhs.m_y)
-        return false;
-
-    if (lhs.m_x < rhs.m_x)
-        return true;
-    if (lhs.m_x > rhs.m_x)
-        return false;
-
-    if (lhs.m_dx < rhs.m_dx)
-        return true;
-    return false;
-}
+using InPolygonTable = std::list<PWint>;
 
 inline PWint getNearestPoly(const PolygonTable &pt, const InPolygonTable &ipl, const ActiveEdgeTable &aet, const ActiveEdgeTable::iterator &edge1, const ActiveEdgeTable::iterator &edge2)
 {

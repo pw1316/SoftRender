@@ -372,9 +372,9 @@ HRESULT PWGL::onRender()
         if (aet_.empty())
             continue;
         /* Sort */
-        aet_.sort(edgeLessComparator);
+        aet_.sort([](const EdgeNode &lhs, const EdgeNode &rhs) {return lhs.m_x < rhs.m_x; });
         /* First edge's polygon is in */
-        ipl_.insert(aet_.front().m_polygonId);
+        ipl_.push_back(aet_.front().m_polygonId);
         /* Each scanline period */
         auto edge1 = aet_.begin();
         auto edge2 = aet_.end();
@@ -397,13 +397,18 @@ HRESULT PWGL::onRender()
             if (edge2 != aet_.end())
             {
                 PWbool edge2InIPL = false;
-                if (ipl_.find(edge2->m_polygonId) != ipl_.end())
+                for (auto &it = ipl_.begin(); it != ipl_.end(); ++it)
                 {
-                    ipl_.erase(edge2->m_polygonId);
+                    if (*it == edge2->m_polygonId)
+                    {
+                        it = ipl_.erase(it);
+                        edge2InIPL = true;
+                        break;
+                    }
                 }
-                else
+                if (!edge2InIPL)
                 {
-                    ipl_.insert(edge2->m_polygonId);
+                    ipl_.push_back(edge2->m_polygonId);
                 }
             }
             edge1 = edge2;
