@@ -9,13 +9,10 @@
 
 struct EdgeNode
 {
+    PWint m_ymax;
+    PWint m_y;
     PWdouble m_x;
-    PWdouble m_y;
-    PWdouble m_z;
-    PWdouble m_ymax;
     PWdouble m_dx;
-    PWdouble m_dy;
-    PWdouble m_dz;
     PWint m_polygonId;
 };
 
@@ -24,7 +21,6 @@ struct PolygonNode
     PWint m_id;
     PWdouble m_a, m_b, m_c, m_d;
     Math::Vector3d m_color;
-    PWbool m_isIn;
 };
 
 using EdgeTable = std::vector<EdgeNode>;

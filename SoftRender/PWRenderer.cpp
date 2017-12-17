@@ -99,8 +99,6 @@ HRESULT PWGL::initDevice()
     bmpInfo_.bmiHeader.biClrUsed = 0;
     bmpInfo_.bmiHeader.biClrImportant = 0;
     hBITMAP_ = CreateDIBSection(hMemDC_, &bmpInfo_, DIB_RGB_COLORS, (void**)&bmpBuffer_, NULL, 0);
-    //hTexture_ = (HBITMAP)::LoadImage(HINST_THISCOMPONENT, "Texture.bmp", IMAGE_BITMAP, 0, 0, LR_DEFAULTCOLOR | LR_CREATEDIBSECTION | LR_LOADFROMFILE);
-    //GetObject(hTexture_, sizeof(BITMAP), &texture_);
 #pragma endregion
 
     p_et_ = new EdgeTable[WINDOW_HEIGHT];
@@ -115,14 +113,14 @@ HRESULT PWGL::initDevice()
     rotGamma_ = 0;
     rotGammaV_ = 0;
     /* World-View matrix */
-    camera_ = Camera::lookAt(0, 64, 80, 0, 64, 0, 0, 1, 0);
+    camera_ = Camera::lookAt(0, 0, 80, 0, 0, 0, 0, 1, 0);
     /* Projection parameters */
     fovx_ = 60;
     aspect_ = 1.0 * WINDOW_WIDTH / WINDOW_HEIGHT;
     near_ = 1;
     far_ = 4500;
     /* Light */
-    lightPos.set(0, 64, 80);// World position
+    lightPos.set(0, 0, 80);// World position
     lightDiffuse_.set(0.4f, 0.4f, 0.4f);
     lightSpecular_.set(0.4f, 0.4f, 0.4f);
     lightAmbient.set(0.2f, 0.2f, 0.2f);
@@ -193,14 +191,13 @@ HRESULT PWGL::onRender()
             p[0] = vertexBuffer[triangle.m_vertexIndex[0]];
             p[1] = vertexBuffer[triangle.m_vertexIndex[1]];
             p[2] = vertexBuffer[triangle.m_vertexIndex[2]];
-            p[0] *= 25; p[0].setY(p[0].getY() + 64);
-            p[1] *= 25; p[1].setY(p[1].getY() + 64);
-            p[2] *= 25; p[2].setY(p[2].getY() + 64);
+            p[0] *= 25;
+            p[1] *= 25;
+            p[2] *= 25;
             /* View */
             p[0] = (transform * p[0].toVector4d1()).toVector3d();
             p[1] = (transform * p[1].toVector4d1()).toVector3d();
             p[2] = (transform * p[2].toVector4d1()).toVector3d();
-            Math::Vector3d norm = Math::cross(p[1] - p[0], p[2] - p[1]).normal();
 
             /* Clip and Projection */
             Math::Matrix44d projection(WINDOW_WIDTH / std::tan(fovx_ / 180 * PI / 2) / 2.0, 0, -WINDOW_WIDTH / 2.0, 0,
@@ -292,12 +289,12 @@ HRESULT PWGL::onRender()
             /* 1. Add the Clipped polygon */
             pt_.emplace_back();
             auto &poly = pt_.back();
-            //PWbyte* textureBuffer = (PWbyte *)(texture_.bmBits);
             poly.m_id = pt_.size() - 1;
             poly.m_a = normProj.getX();
             poly.m_b = normProj.getY();
             poly.m_c = normProj.getZ();
             poly.m_d = -(poly.m_a * screen[1].getX() + poly.m_b * screen[1].getY() + poly.m_c * screen[1].getZ());
+            Math::Vector3d norm = Math::cross(p[1] - p[0], p[2] - p[1]).normal();
             Math::Vector3d polygonInView = (p[0] + p[1] + p[2]) / 3;
             Math::Vector3d l = (lightInView - polygonInView).normal();
             Math::Vector3d r = norm * 2 * l.dot(norm) - l;
@@ -309,7 +306,6 @@ HRESULT PWGL::onRender()
             PWuint green = (vDiff * lightDiffuse_.getY() + vSpec * lightSpecular_.getY() + lightAmbient.getY()) * 255;
             PWuint red = (vDiff * lightDiffuse_.getZ() + vSpec * lightSpecular_.getZ() + lightAmbient.getZ()) * 255;
             poly.m_color = Math::Vector3d(blue, green, red);
-            poly.m_isIn = false;
             /* 2. Add all of the edges of the polygon into the ET */
             PWint ETindex = 0;
             for (int k = 0; k < index; k++)
@@ -319,89 +315,44 @@ HRESULT PWGL::onRender()
                 PWint x1 = (PWint)pointList[(k + 1) % index].getX();
                 PWint y1 = (PWint)pointList[(k + 1) % index].getY();
                 /* Ignore horizontal line */
-                if (y0 == y1)
+                if ((y0 == y1) || (y0 < 0 && y1 < 0) || (y0 >= WINDOW_HEIGHT && y1 >= WINDOW_HEIGHT))
                 {
                     continue;
                 }
                 auto &edge = edgeList[ETindex];
                 edge.m_polygonId = poly.m_id;
                 edge.m_ymax = max(y0, y1);
-                /* ignore edge below 0 */
-                if (edge.m_ymax < 0)
-                {
-                    continue;
-                }
                 PWint lowx = (y0 < y1) ? x0 : x1;
                 PWint lowy = (y0 < y1) ? y0 : y1;
                 edge.m_x = lowx;
                 edge.m_y = lowy;
-                /* ignore edge below 0 */
-                if (edge.m_y >= WINDOW_HEIGHT)
-                {
-                    continue;
-                }
-                PWdouble v0 = (lowx - screen[2].getX()) * (screen[1].getY() - screen[2].getY()) + (lowy - screen[2].getY()) * (screen[2].getX() - screen[1].getX());
-                v0 /= (screen[0].getX() - screen[2].getX()) * (screen[1].getY() - screen[2].getY()) + (screen[0].getY() - screen[2].getY()) * (screen[2].getX() - screen[1].getX());
-                PWdouble v1 = (lowx - screen[0].getX()) * (screen[2].getY() - screen[0].getY()) + (lowy - screen[0].getY()) * (screen[0].getX() - screen[2].getX());
-                v1 /= (screen[1].getX() - screen[0].getX()) * (screen[2].getY() - screen[0].getY()) + (screen[1].getY() - screen[0].getY()) * (screen[0].getX() - screen[2].getX());
-                PWdouble v2 = 1 - v0 - v1;
-                edge.m_z = 1 / (v0 / screen[0].getZ() + v1 / screen[1].getZ() + v2 / screen[2].getZ());
                 edge.m_dx = 1.0 * (x1 - x0) / (y1 - y0);
-                edge.m_dy = 1;
-                edge.m_dz = (pointList[k + 1].getZ() - pointList[k].getZ()) / (y1 - y0);
                 if (edge.m_y < 0)
                 {
                     edge.m_x += edge.m_dx * (-edge.m_y);
                     edge.m_y = 0;
-                    edge.m_z += edge.m_dz * (-edge.m_y);
                 }
                 ETindex++;
             }
             /* 3. Fix non-local-extremum */
-            if (ETindex > 0)
+            for (int idx = 0; idx < ETindex; ++idx)
             {
-                /*   First Edge */
+                auto &prevEdge = edgeList[(idx - 1 + ETindex) % ETindex];
+                auto &edge = edgeList[idx];
+                auto &nextEdge = edgeList[(idx + 1) % ETindex];
+                if (nextEdge.m_ymax == edge.m_y || prevEdge.m_ymax == edge.m_y)
                 {
-                    auto &prevEdge = edgeList[ETindex - 1];
-                    auto &edge = edgeList[0];
-                    auto &nextEdge = edgeList[1];
-                    if (Math::equal(nextEdge.m_ymax, edge.m_y) || Math::equal(prevEdge.m_ymax, edge.m_y))
-                    {
-                        edge.m_x += edge.m_dx;
-                        edge.m_y += edge.m_dy;
-                        edge.m_z += edge.m_dz;
-                    }
-                }
-                /* Internal Edge */
-                for (int idx = 1; idx < ETindex - 1; ++idx)
-                {
-                    auto &prevEdge = edgeList[idx - 1];
-                    auto &edge = edgeList[idx];
-                    auto &nextEdge = edgeList[idx + 1];
-                    if (Math::equal(nextEdge.m_ymax, edge.m_y) || Math::equal(prevEdge.m_ymax, edge.m_y))
-                    {
-                        edge.m_x += edge.m_dx;
-                        edge.m_y += edge.m_dy;
-                        edge.m_z += edge.m_dz;
-                    }
-                }
-                /* Last Edge */
-                {
-                    auto &prevEdge = edgeList[ETindex - 2];
-                    auto &edge = edgeList[ETindex - 1];
-                    auto &nextEdge = edgeList[0];
-                    if (Math::equal(nextEdge.m_ymax, edge.m_y) || Math::equal(prevEdge.m_ymax, edge.m_y))
-                    {
-                        edge.m_x += edge.m_dx;
-                        edge.m_y += edge.m_dy;
-                        edge.m_z += edge.m_dz;
-                    }
+                    edge.m_x += edge.m_dx;
+                    edge.m_y += 1;
                 }
             }
             /* 4. Move from edgelist to p_et_ */
             for (int idx = 0; idx < ETindex; ++idx)
             {
-                p_et_[static_cast<int>(edgeList[idx].m_y)].push_back(edgeList[idx]);
+                if (edgeList[idx].m_y < WINDOW_HEIGHT)
+                {
+                    p_et_[edgeList[idx].m_y].push_back(edgeList[idx]);
+                }
             }
         }
     }
@@ -461,8 +412,7 @@ HRESULT PWGL::onRender()
         for (auto edge = aet_.begin(); edge != aet_.end();)
         {
             edge->m_x += edge->m_dx;
-            edge->m_y += edge->m_dy;
-            edge->m_z += edge->m_dz;
+            edge->m_y += 1;
             if (edge->m_y > edge->m_ymax)
             {
                 edge = aet_.erase(edge);
