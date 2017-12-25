@@ -7,14 +7,14 @@
 
 namespace FileReader
 {
-    struct ObjTriangle
+    struct ObjPolygon
     {
-        PWint m_vertexIndex[3];
+		std::vector<PWint> m_vertexIndex;
     };
 
     struct ObjGroup
     {
-        std::vector<PWint> m_triangleIndices;
+        std::vector<PWint> m_polygonIndices;
     };
 
     class ObjModel
@@ -25,15 +25,15 @@ namespace FileReader
             m_path.clear();
             m_vertices.clear();
             m_vertices.emplace_back(0, 0, 0);
-            m_triangles.clear();
-            m_triangles.emplace_back();
+            m_polygons.clear();
+            m_polygons.emplace_back();
             m_groups.clear();
         }
         PWbool readObj(const std::string &path);
 
         std::string m_path;
         std::vector<Math::Vector3d> m_vertices;
-        std::vector<ObjTriangle> m_triangles;
+        std::vector<ObjPolygon> m_polygons;
         std::map<std::string, ObjGroup> m_groups;
     private:
         std::map<std::string, ObjGroup>::iterator findAndAddGroup(const std::string &name)

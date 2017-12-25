@@ -176,123 +176,105 @@ HRESULT PWGL::onRender()
     transform = camera_ * transform;
     camera_ * lightPos.toVector4d1();
     Math::Vector3d lightInView = (camera_ * lightPos.toVector4d1()).toVector3d();
-    /* p0, p1, p2: Face's vertices in view */
-    /* proj0, proj1, proj2: Face's vertices in projection */
-    /* screen0, screen1, screen2: Face's vertices in projection with w normalized */
-    /* pointList: Clipped vertex list */
+    /* p: Face's vertices in view */
+    /* proj: Face's vertices in projection */
+    /* screen: Face's vertices in projection with w normalized */
     auto &vertexBuffer = p_model_->m_vertices;
     for (auto &group : p_model_->m_groups)
     {
-        for (auto &triIdx : group.second.m_triangleIndices)
+        for (auto &polyIdx : group.second.m_polygonIndices)
         {
-            auto &triangle = p_model_->m_triangles[triIdx];
-            /* Model */
-            Math::Vector3d p[3];
-            p[0] = vertexBuffer[triangle.m_vertexIndex[0]];
-            p[1] = vertexBuffer[triangle.m_vertexIndex[1]];
-            p[2] = vertexBuffer[triangle.m_vertexIndex[2]];
+            auto &polygon = p_model_->m_polygons[polyIdx];
             /* View */
-            p[0] = (transform * p[0].toVector4d1()).toVector3d();
-            p[1] = (transform * p[1].toVector4d1()).toVector3d();
-            p[2] = (transform * p[2].toVector4d1()).toVector3d();
+            PWint vertexLen = polygon.m_vertexIndex.size();
+            std::vector<Math::Vector3d> p(vertexLen);
+            std::vector<Math::Vector4d> proj(vertexLen);
+            std::vector<Math::Vector3d> screen(vertexLen);
+            std::vector<EdgeNode> edgeList(vertexLen);
+            for (int i = 0; i < vertexLen; i++)
+            {
+                p[i] = (transform * vertexBuffer[polygon.m_vertexIndex[i]].toVector4d1()).toVector3d();
+            }
 
             /* Clip and Projection */
             Math::Matrix44d projection(WINDOW_WIDTH / std::tan(fovx_ / 180 * PI / 2) / 2.0, 0, -WINDOW_WIDTH / 2.0, 0,
                 0, WINDOW_HEIGHT * aspect_ / tan(fovx_ / 180 * PI / 2) / 2.0, -WINDOW_HEIGHT / 2.0, 0,
                 0, 0, far_ / (far_ - near_), near_ * far_ / (far_ - near_),
                 0, 0, -1, 0);
-            PWint index = 0;
-            Math::Vector3d pointList[12];
-            EdgeNode edgeList[12];
-            Math::Vector4d proj[3];
-            Math::Vector3d screen[3];
-            proj[0] = projection * p[0].toVector4d1();
-            proj[1] = projection * p[1].toVector4d1();
-            proj[2] = projection * p[2].toVector4d1();
-            screen[0] = proj[0].normal().toVector3d();
-            screen[1] = proj[1].normal().toVector3d();
-            screen[2] = proj[2].normal().toVector3d();
-            /* Behind Camera */
-            if (proj[0].getZ() > 0 || proj[1].getZ() > 0 || proj[2].getZ() > 0) continue;
-            /* Backface */
-            Math::Vector3d normProj = Math::cross(screen[1] - screen[0], screen[2] - screen[1]);
-            if (normProj.getZ() < 0) continue;
-            /* Face to be clipped */
-            for (int edgeIndex = 0; edgeIndex < 3; edgeIndex++)
+            bool isBehindCamera = false;
+            for (int i = 0; i < vertexLen; i++)
             {
-                int start = edgeIndex;
-                int end = (edgeIndex + 1) % 3;
-                if (screen[start].getZ() > 0.0f)
+                proj[i] = projection * p[i].toVector4d1();
+                screen[i] = proj[i].normal().toVector3d();
+                isBehindCamera = proj[i].getZ() > 0;
+            }
+            /* Behind Camera */
+            if (isBehindCamera)
+            {
+                continue;
+            }
+            /* Backface */
+            Math::Vector3d normProj;
+            {
+                PWint idx = vertexLen - 1;
+                for (PWint i = 0; i < vertexLen; i++)
                 {
-                    if (screen[end].getZ() > 0.0f)
-                    {
-                    }
-                    else if (screen[end].getZ() < -1.0f)
-                    {
-                        PWdouble t = (screen[start].getZ() - 0.0f) / (screen[start].getZ() - screen[end].getZ());
-                        pointList[index++] = screen[start] + (screen[end] - screen[start]) * t;
-                        t = (screen[start].getZ() + 1.0f) / (screen[start].getZ() - screen[end].getZ());
-                        pointList[index++] = screen[start] + (screen[end] - screen[start]) * t;
-                    }
-                    else
-                    {
-                        PWdouble t = (screen[start].getZ() - 0.0f) / (screen[start].getZ() - screen[end].getZ());
-                        pointList[index++] = screen[start] + (screen[end] - screen[start]) * t;
-                    }
+                    PWdouble x = (screen[idx].getZ() + screen[i].getZ()) * (screen[idx].getY() - screen[i].getY());
+                    PWdouble y = (screen[idx].getX() + screen[i].getX()) * (screen[idx].getZ() - screen[i].getZ());
+                    PWdouble z = (screen[idx].getY() + screen[i].getY()) * (screen[idx].getX() - screen[i].getX());
+                    normProj += Math::Vector3d(x, y, z);
+                    idx = i;
                 }
-                else if (screen[start].getZ() < -1.0f)
+                if (normProj.getZ() < 0)
                 {
-                    if (screen[end].getZ() > 0.0f)
-                    {
-                        PWdouble t = (screen[start].getZ() + 1.0f) / (screen[start].getZ() - screen[end].getZ());
-                        pointList[index++] = screen[start] + (screen[end] - screen[start]) * t;
-                        t = (screen[start].getZ() - 0.0f) / (screen[start].getZ() - screen[end].getZ());
-                        pointList[index++] = screen[start] + (screen[end] - screen[start]) * t;
-                    }
-                    else if (screen[end].getZ() < -1.0f)
-                    {
-                    }
-                    else
-                    {
-                        PWdouble t = (screen[start].getZ() + 1.0f) / (screen[start].getZ() - screen[end].getZ());
-                        pointList[index++] = screen[start] + (screen[end] - screen[start]) * t;
-                    }
-                }
-                else {
-                    pointList[index++] = screen[start];
-                    if (screen[end].getZ() > 0.0f)
-                    {
-                        PWdouble t = (screen[start].getZ() - 0.0f) / (screen[start].getZ() - screen[end].getZ());
-                        pointList[index++] = screen[start] + (screen[end] - screen[start]) * t;
-                    }
-                    else if (screen[end].getZ() < -1.0f)
-                    {
-                        PWdouble t = (screen[start].getZ() + 1.0f) / (screen[start].getZ() - screen[end].getZ());
-                        pointList[index++] = screen[start] + (screen[end] - screen[start]) * t;
-                    }
+                    continue;
                 }
             }
-            if (index < 3) continue;
             /* If x and y are completely out of range */
             PWdouble left = min(screen[0].getX(), min(screen[1].getX(), screen[2].getX()));
             PWdouble right = max(screen[0].getX(), max(screen[1].getX(), screen[2].getX()));
             PWdouble top = max(screen[0].getY(), max(screen[1].getY(), screen[2].getY()));
             PWdouble bottom = min(screen[0].getY(), min(screen[1].getY(), screen[2].getY()));
-            if (right < 0 || left > WINDOW_WIDTH || bottom > WINDOW_HEIGHT || top < 0)
+            PWdouble back = min(screen[0].getZ(), min(screen[1].getZ(), screen[2].getZ()));
+            PWdouble front = max(screen[0].getZ(), max(screen[1].getZ(), screen[2].getZ()));
+            if (right < 0 || left > WINDOW_WIDTH || bottom > WINDOW_HEIGHT || top < 0 || front < -1 || back > 0)
             {
                 continue;
             }
             /* Rasterize */
-            /* 1. Add the Clipped polygon */
+            /* 1. Add the polygon */
             pt_.emplace_back();
             auto &poly = pt_.back();
             poly.m_id = pt_.size() - 1;
+            /* ax+by+cz+d=0 */
             poly.m_a = normProj.getX();
             poly.m_b = normProj.getY();
             poly.m_c = normProj.getZ();
-            poly.m_d = -(poly.m_a * screen[1].getX() + poly.m_b * screen[1].getY() + poly.m_c * screen[1].getZ());
-            Math::Vector3d norm = Math::cross(p[1] - p[0], p[2] - p[1]).normal();
-            Math::Vector3d polygonInView = (p[0] + p[1] + p[2]) / 3;
+            poly.m_d = 0;
+            for (int i = 0; i < vertexLen; i++)
+            {
+                poly.m_d -= normProj.dot(screen[i]);
+            }
+            poly.m_d /= vertexLen;
+            Math::Vector3d norm;
+            {
+                PWint idx = vertexLen - 1;
+                for (PWint i = 0; i < vertexLen; i++)
+                {
+                    PWdouble x = (p[idx].getZ() + p[i].getZ()) * (p[idx].getY() - p[i].getY());
+                    PWdouble y = (p[idx].getX() + p[i].getX()) * (p[idx].getZ() - p[i].getZ());
+                    PWdouble z = (p[idx].getY() + p[i].getY()) * (p[idx].getX() - p[i].getX());
+                    norm += Math::Vector3d(x, y, z);
+                    idx = i;
+                }
+            }
+            norm.normalize();
+            Math::Vector3d polygonInView;
+            for (PWint i = 0; i < vertexLen; i++)
+            {
+                polygonInView += p[i];
+            }
+            polygonInView /= vertexLen;
             Math::Vector3d l = (lightInView - polygonInView).normal();
             Math::Vector3d r = norm * 2 * l.dot(norm) - l;
             Math::Vector3d v = -polygonInView.normal();
@@ -304,13 +286,14 @@ HRESULT PWGL::onRender()
             PWuint red = (vDiff * lightDiffuse_.getZ() + vSpec * lightSpecular_.getZ() + lightAmbient.getZ()) * 255;
             poly.m_color = Math::Vector3d(blue, green, red);
             /* 2. Add all of the edges of the polygon into the ET */
+            PWint index = vertexLen;
             PWint ETindex = 0;
             for (int k = 0; k < index; k++)
             {
-                PWint x0 = (PWint)pointList[k].getX();
-                PWint y0 = (PWint)pointList[k].getY();
-                PWint x1 = (PWint)pointList[(k + 1) % index].getX();
-                PWint y1 = (PWint)pointList[(k + 1) % index].getY();
+                PWint x0 = (PWint)screen[k].getX();
+                PWint y0 = (PWint)screen[k].getY();
+                PWint x1 = (PWint)screen[(k + 1) % index].getX();
+                PWint y1 = (PWint)screen[(k + 1) % index].getY();
                 /* Ignore horizontal line */
                 if ((y0 == y1) || (y0 < 0 && y1 < 0) || (y0 >= WINDOW_HEIGHT && y1 >= WINDOW_HEIGHT))
                 {

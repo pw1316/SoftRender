@@ -53,8 +53,8 @@ PWbool FileReader::ObjModel::readObj(const std::string &path)
                 PWint idx = 0;
                 std::stringstream tokenBuf;
                 char dummyChar;
-                m_triangles.push_back(ObjTriangle());
-                it_group->second.m_triangleIndices.push_back(m_triangles.size() - 1);
+                m_polygons.push_back(ObjPolygon());
+                it_group->second.m_polygonIndices.push_back(m_polygons.size() - 1);
 
                 while (lineBuffer >> token)
                 {
@@ -62,23 +62,8 @@ PWbool FileReader::ObjModel::readObj(const std::string &path)
                     tokenBuf.clear();
                     tokenBuf.sync();
                     tokenBuf << token;
-
-                    /* v */
                     tokenBuf >> x;
-
-                    if (idx < 3)
-                    {
-                        m_triangles.back().m_vertexIndex[idx] = x;
-                    }
-                    else
-                    {
-                        m_triangles.push_back(ObjTriangle());
-                        it_group->second.m_triangleIndices.push_back(m_triangles.size() - 1);
-                        m_triangles.back().m_vertexIndex[0] = m_triangles[m_triangles.size() - 2].m_vertexIndex[0];
-                        m_triangles.back().m_vertexIndex[1] = m_triangles[m_triangles.size() - 2].m_vertexIndex[2];
-                        m_triangles.back().m_vertexIndex[2] = x;
-                    }
-                    ++idx;
+					m_polygons.back().m_vertexIndex.push_back(x);
                 }
             }
             /* Vertex */
